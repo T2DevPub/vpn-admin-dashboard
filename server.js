@@ -2,49 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
-const admin = require('firebase-admin');
-
-// Initialize Firebase Admin
-try {
-  let serviceAccount;
-
-  // Check if credentials were provided via environment variable
-  if (process.env.FIREBASE_PROJECT_ID) {
-      serviceAccount = {
-          "type": "service_account",
-          "project_id": process.env.FIREBASE_PROJECT_ID,
-          "private_key_id": process.env.FIREBASE_PRIVATE_KEY_ID,
-          "private_key": process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : "",
-          "client_email": process.env.FIREBASE_CLIENT_EMAIL,
-          "client_id": process.env.FIREBASE_CLIENT_ID,
-          "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-          "token_uri": "https://oauth2.googleapis.com/token",
-          "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-          "client_x509_cert_url": process.env.FIREBASE_CLIENT_CERT_URL
-      };
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  } else {
-      // Fallback to local file for desktop testing
-      serviceAccount = require('./serviceAccountKey.json');
-  }
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log("Firebase Admin Initialized Successfully");
-} catch(e) {
-  console.error("Firebase Admin Initialization Error:", e.message);
-  // Re-throw to crash on startup locally so we see logs in Coolify
-  // db = null;
-}
-
-const db = admin.firestore ? admin.firestore() : null;
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Setup Multer for memory storage (for processing .ovpn uploads without saving to disk)
+// Setup Multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.set('view engine', 'ejs');
@@ -52,7 +18,6 @@ app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Basic session setup for simple auth
 app.use(session({
   secret: process.env.SESSION_SECRET || 'vpn-super-secret-key-123',
   resave: false,
@@ -60,9 +25,57 @@ app.use(session({
   cookie: { maxAge: 1000 * 60 * 60 * 24 } // 24 hours
 }));
 
-// Hardcoded Admin Credentials (set in .env for production)
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'password';
+
+// --- Database Setup ---
+let db;
+async function setupDatabase() {
+  const dbPath = path.join(__dirname, 'data');
+  if (!fs.existsSync(dbPath)) fs.mkdirSync(dbPath);
+
+  db = await open({
+    filename: path.join(dbPath, 'vpn.sqlite'),
+    driver: sqlite3.Database
+  });
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS servers (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      countryCode TEXT,
+      flagEmoji TEXT,
+      city TEXT,
+      ipAddress TEXT,
+      port INTEGER,
+      protocol TEXT,
+      pingMs INTEGER,
+      loadPercent INTEGER,
+      isPlusOnly INTEGER,
+      ovpnConfig TEXT,
+      vpnUsername TEXT,
+      vpnPassword TEXT
+    );
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS app_config (
+      id TEXT PRIMARY KEY,
+      bannersEnabled INTEGER,
+      interstitialOnConnect INTEGER,
+      interstitialOnDisconnect INTEGER,
+      appOpenAdsEnabled INTEGER,
+      adNetworkProvider TEXT
+    );
+  `);
+
+  // Insert default config if none exists
+  const configExists = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
+  if (!configExists) {
+    await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider) VALUES ('ads', 1, 1, 1, 1, 'AdMob')`);
+  }
+}
+setupDatabase();
 
 // Auth Middleware
 const requireAuth = (req, res, next) => {
@@ -79,7 +92,6 @@ app.get('/', (req, res) => {
   res.redirect('/dashboard');
 });
 
-// Login
 app.get('/login', (req, res) => {
   res.render('login', { error: null });
 });
@@ -99,22 +111,44 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
+// APIs for the Android App to read data without logging in
+app.get('/api/servers', async (req, res) => {
+  if(!db) return res.status(500).json({error: "Database starting"});
+  const servers = await db.all(`SELECT * FROM servers`);
+  // Convert sqlite integer booleans back to true/false for the app
+  const mapped = servers.map(s => ({...s, isPlusOnly: s.isPlusOnly === 1}));
+  res.json(mapped);
+});
+
+app.get('/api/ads', async (req, res) => {
+  if(!db) return res.status(500).json({error: "Database starting"});
+  const config = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
+  res.json({
+      bannersEnabled: config.bannersEnabled === 1,
+      interstitialOnConnect: config.interstitialOnConnect === 1,
+      interstitialOnDisconnect: config.interstitialOnDisconnect === 1,
+      appOpenAdsEnabled: config.appOpenAdsEnabled === 1,
+      adNetworkProvider: config.adNetworkProvider
+  });
+});
+
 // Dashboard (Server List)
 app.get('/dashboard', requireAuth, async (req, res) => {
   let servers = [];
   if (db) {
-    const snapshot = await db.collection('vpn_servers').get();
-    servers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    servers = await db.all(`SELECT * FROM servers`);
+    servers = servers.map(s => ({...s, isPlusOnly: s.isPlusOnly === 1}));
   }
   res.render('dashboard', { servers });
 });
 
 // Edit Server Page
 app.get('/edit/:id', requireAuth, async (req, res) => {
-  if (!db) return res.send("Firebase not configured");
-  const doc = await db.collection('vpn_servers').doc(req.params.id).get();
-  if (!doc.exists) return res.status(404).send("Server not found");
-  res.render('edit_server', { server: { id: doc.id, ...doc.data() } });
+  if (!db) return res.send("DB not configured");
+  const doc = await db.get(`SELECT * FROM servers WHERE id = ?`, req.params.id);
+  if (!doc) return res.status(404).send("Server not found");
+  doc.isPlusOnly = doc.isPlusOnly === 1;
+  res.render('edit_server', { server: doc });
 });
 
 // Add Server Page
@@ -124,12 +158,11 @@ app.get('/add', requireAuth, (req, res) => {
 
 // Save Server
 app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
-  if (!db) return res.send("Firebase not configured");
+  if (!db) return res.send("DB not configured");
 
   const data = req.body;
-  const isPlusOnly = data.isPlusOnly === 'on';
+  const isPlusOnly = data.isPlusOnly === 'on' ? 1 : 0;
 
-  // Extract file content if uploaded
   let ovpnConfig = data.existingOvpn || "";
   if (req.file) {
     ovpnConfig = req.file.buffer.toString('utf-8');
@@ -147,16 +180,20 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
     loadPercent: parseInt(data.loadPercent) || 40,
     isPlusOnly: isPlusOnly,
     ovpnConfig: ovpnConfig,
-    vpnUsername: data.vpnUsername,
-    vpnPassword: data.vpnPassword
+    vpnUsername: data.vpnUsername || "",
+    vpnPassword: data.vpnPassword || ""
   };
 
-  if (data.id) {
-    await db.collection('vpn_servers').doc(data.id).update(serverData);
+  const id = data.id || (data.countryCode.toLowerCase() + "_" + data.city.toLowerCase().replace(/\\s+/g, ""));
+
+  const existing = await db.get(`SELECT id FROM servers WHERE id = ?`, id);
+
+  if (existing) {
+    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, protocol=?, pingMs=?, loadPercent=?, isPlusOnly=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
+      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.pingMs, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
   } else {
-    // Generate simple ID if none provided
-    const id = data.countryCode.toLowerCase() + "_" + data.city.toLowerCase().replace(/\\s+/g, "");
-    await db.collection('vpn_servers').doc(id).set(serverData);
+    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, protocol, pingMs, loadPercent, isPlusOnly, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.pingMs, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
   }
 
   res.redirect('/dashboard');
@@ -165,48 +202,43 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
 // Delete Server
 app.get('/delete/:id', requireAuth, async (req, res) => {
   if (db) {
-    await db.collection('vpn_servers').doc(req.params.id).delete();
+    await db.run(`DELETE FROM servers WHERE id = ?`, req.params.id);
   }
   res.redirect('/dashboard');
 });
 
 // Ad Management Page
 app.get('/ads', requireAuth, async (req, res) => {
-  if (!db) return res.send("Firebase not configured");
+  if (!db) return res.send("DB not configured");
 
-  let config = {
-      bannersEnabled: true,
-      interstitialOnConnect: true,
-      interstitialOnDisconnect: true,
-      appOpenAdsEnabled: true,
-      adNetworkProvider: "AdMob"
+  const doc = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
+  const config = {
+      bannersEnabled: doc.bannersEnabled === 1,
+      interstitialOnConnect: doc.interstitialOnConnect === 1,
+      interstitialOnDisconnect: doc.interstitialOnDisconnect === 1,
+      appOpenAdsEnabled: doc.appOpenAdsEnabled === 1,
+      adNetworkProvider: doc.adNetworkProvider
   };
-
-  const doc = await db.collection('app_config').doc('ads').get();
-  if (doc.exists) {
-      config = { ...config, ...doc.data() };
-  }
 
   res.render('ads', { config });
 });
 
 app.post('/ads', requireAuth, async (req, res) => {
-  if (!db) return res.send("Firebase not configured");
+  if (!db) return res.send("DB not configured");
   const data = req.body;
 
-  const config = {
-      bannersEnabled: data.bannersEnabled === 'on',
-      interstitialOnConnect: data.interstitialOnConnect === 'on',
-      interstitialOnDisconnect: data.interstitialOnDisconnect === 'on',
-      appOpenAdsEnabled: data.appOpenAdsEnabled === 'on',
-      adNetworkProvider: data.adNetworkProvider || "AdMob"
-  };
+  const banners = data.bannersEnabled === 'on' ? 1 : 0;
+  const iConnect = data.interstitialOnConnect === 'on' ? 1 : 0;
+  const iDisconnect = data.interstitialOnDisconnect === 'on' ? 1 : 0;
+  const appOpen = data.appOpenAdsEnabled === 'on' ? 1 : 0;
+  const provider = data.adNetworkProvider || "AdMob";
 
-  await db.collection('app_config').doc('ads').set(config, { merge: true });
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, appOpen, provider]);
+
   res.redirect('/ads');
 });
 
-// Helper for Flags
 function getFlagEmoji(countryCode) {
     if (!countryCode || countryCode.length !== 2) return "🌐";
     const codePoints = countryCode
