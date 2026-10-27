@@ -6,7 +6,7 @@
 </head>
 <body class="bg-gray-100">
     <nav class="bg-blue-800 text-white p-4 flex justify-between">
-        <div class="font-bold text-xl">Psiphon Admin</div>
+        <div class="font-bold text-xl">t2VPN Admin</div>
         <div>
             <a href="/dashboard" class="mr-4">Servers</a>
             <a href="/ads" class="mr-4 font-bold border-b-2">Ads</a>
@@ -43,7 +43,7 @@
                 </label>
             </div>
 
-            <h2 class="text-lg font-bold mb-4 border-b pb-2">Ad Network Routing</h2>
+            <h2 class="text-lg font-bold mb-4 border-b pb-2 mt-8">Ad Network Routing & IDs</h2>
             <div class="mb-6">
                 <label class="block text-gray-700 mb-2">Primary Ad Network Provider</label>
                 <select name="adNetworkProvider" class="w-full border rounded p-2">
@@ -51,6 +51,25 @@
                     <option value="Meta" <%= config.adNetworkProvider === 'Meta' ? 'selected' : '' %>>Meta Audience Network</option>
                 </select>
                 <p class="text-sm text-gray-500 mt-2">This determines which SDK handles the primary ad requests on the Android client.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Banner Ad Unit ID</label>
+                    <input type="text" name="bannerAdUnitId" value="<%= config.bannerAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">App Open Ad Unit ID</label>
+                    <input type="text" name="appOpenAdUnitId" value="<%= config.appOpenAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Interstitial Ad Unit ID</label>
+                    <input type="text" name="interstitialAdUnitId" value="<%= config.interstitialAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Rewarded Ad Unit ID</label>
+                    <input type="text" name="rewardedAdUnitId" value="<%= config.rewardedAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
+                </div>
             </div>
 
             <div class="mt-8">

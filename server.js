@@ -65,14 +65,28 @@ async function setupDatabase() {
       interstitialOnConnect INTEGER,
       interstitialOnDisconnect INTEGER,
       appOpenAdsEnabled INTEGER,
-      adNetworkProvider TEXT
+      adNetworkProvider TEXT,
+      bannerAdUnitId TEXT,
+      appOpenAdUnitId TEXT,
+      interstitialAdUnitId TEXT,
+      rewardedAdUnitId TEXT
     );
   `);
+
+  // Add missing columns if upgrading from previous version
+  try {
+      await db.exec(`ALTER TABLE app_config ADD COLUMN bannerAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN appOpenAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN interstitialAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN rewardedAdUnitId TEXT`);
+  } catch (e) {
+      // Ignore if columns already exist
+  }
 
   // Insert default config if none exists
   const configExists = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
   if (!configExists) {
-    await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider) VALUES ('ads', 1, 1, 1, 1, 'AdMob')`);
+    await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '')`);
   }
 }
 setupDatabase();
@@ -128,7 +142,11 @@ app.get('/api/ads', async (req, res) => {
       interstitialOnConnect: config.interstitialOnConnect === 1,
       interstitialOnDisconnect: config.interstitialOnDisconnect === 1,
       appOpenAdsEnabled: config.appOpenAdsEnabled === 1,
-      adNetworkProvider: config.adNetworkProvider
+      adNetworkProvider: config.adNetworkProvider,
+      bannerAdUnitId: config.bannerAdUnitId || "",
+      appOpenAdUnitId: config.appOpenAdUnitId || "",
+      interstitialAdUnitId: config.interstitialAdUnitId || "",
+      rewardedAdUnitId: config.rewardedAdUnitId || ""
   });
 });
 
@@ -217,7 +235,11 @@ app.get('/ads', requireAuth, async (req, res) => {
       interstitialOnConnect: doc.interstitialOnConnect === 1,
       interstitialOnDisconnect: doc.interstitialOnDisconnect === 1,
       appOpenAdsEnabled: doc.appOpenAdsEnabled === 1,
-      adNetworkProvider: doc.adNetworkProvider
+      adNetworkProvider: doc.adNetworkProvider,
+      bannerAdUnitId: doc.bannerAdUnitId || "",
+      appOpenAdUnitId: doc.appOpenAdUnitId || "",
+      interstitialAdUnitId: doc.interstitialAdUnitId || "",
+      rewardedAdUnitId: doc.rewardedAdUnitId || ""
   };
 
   res.render('ads', { config });
@@ -233,8 +255,13 @@ app.post('/ads', requireAuth, async (req, res) => {
   const appOpen = data.appOpenAdsEnabled === 'on' ? 1 : 0;
   const provider = data.adNetworkProvider || "AdMob";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, appOpen, provider]);
+  const bannerId = data.bannerAdUnitId || "";
+  const appOpenId = data.appOpenAdUnitId || "";
+  const interstitialId = data.interstitialAdUnitId || "";
+  const rewardedId = data.rewardedAdUnitId || "";
+
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId]);
 
   res.redirect('/ads');
 });
