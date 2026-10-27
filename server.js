@@ -193,5 +193,5 @@ function getFlagEmoji(countryCode) {
 }
 
 app.listen(port, () => {
-  console.log(\`Dashboard running at http://localhost:\${port}\`);
+  console.log(`Dashboard running at http://localhost:${port}`);
 });
