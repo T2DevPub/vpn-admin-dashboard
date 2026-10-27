@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= server ? 'Edit' : 'Add' %> Server | VPN Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-blue-800 text-white p-4 flex justify-between">
+        <div class="font-bold text-xl">Psiphon Admin</div>
+        <a href="/dashboard" class="text-blue-200">← Back to Dashboard</a>
+    </nav>
+
+    <div class="p-8 max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6"><%= server ? 'Edit' : 'Add New' %> Server</h1>
+
+        <form action="/save" method="POST" enctype="multipart/form-data" class="bg-white p-6 rounded shadow">
+
+            <% if(server) { %>
+                <input type="hidden" name="id" value="<%= server.id %>">
+            <% } %>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700">Display Name (e.g. United States)</label>
+                    <input type="text" name="name" value="<%= server ? server.name : '' %>" class="w-full border rounded p-2 mt-1" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700">Country Code (2 letters, e.g. US, UK)</label>
+                    <input type="text" name="countryCode" value="<%= server ? server.countryCode : '' %>" maxlength="2" class="w-full border rounded p-2 mt-1" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700">City</label>
+                    <input type="text" name="city" value="<%= server ? server.city : '' %>" class="w-full border rounded p-2 mt-1" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700">IP Address / Hostname</label>
+                    <input type="text" name="ipAddress" value="<%= server ? server.ipAddress : '' %>" class="w-full border rounded p-2 mt-1" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700">Port (Default: 1194)</label>
+                    <input type="number" name="port" value="<%= server ? server.port : 1194 %>" class="w-full border rounded p-2 mt-1">
+                </div>
+                <div>
+                    <label class="block text-gray-700">Ping (ms)</label>
+                    <input type="number" name="pingMs" value="<%= server ? server.pingMs : 35 %>" class="w-full border rounded p-2 mt-1">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" name="isPlusOnly" class="form-checkbox h-5 w-5 text-blue-600" <%= (server && server.isPlusOnly) ? 'checked' : '' %>>
+                    <span class="ml-2 text-gray-700 font-bold">Premium Server (Plus Only)</span>
+                </label>
+            </div>
+
+            <hr class="my-6">
+            <h2 class="text-xl font-bold mb-4">VPN Credentials & Config</h2>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700">VPN Username</label>
+                    <input type="text" name="vpnUsername" value="<%= server ? server.vpnUsername : '' %>" class="w-full border rounded p-2 mt-1">
+                </div>
+                <div>
+                    <label class="block text-gray-700">VPN Password</label>
+                    <input type="text" name="vpnPassword" value="<%= server ? server.vpnPassword : '' %>" class="w-full border rounded p-2 mt-1">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700">Upload .ovpn Config File</label>
+                <input type="file" name="ovpnFile" accept=".ovpn" class="w-full border rounded p-2 mt-1 bg-gray-50">
+                <p class="text-sm text-gray-500 mt-1">Uploading a new file will overwrite the existing configuration.</p>
+            </div>
+
+            <!-- Hidden field to keep old config if no new file is uploaded -->
+            <input type="hidden" name="existingOvpn" value="<%= server ? server.ovpnConfig : '' %>">
+
+            <div class="mt-8">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-bold">Save Server</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

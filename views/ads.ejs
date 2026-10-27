@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ad Management | VPN Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-blue-800 text-white p-4 flex justify-between">
+        <div class="font-bold text-xl">Psiphon Admin</div>
+        <div>
+            <a href="/dashboard" class="mr-4">Servers</a>
+            <a href="/ads" class="mr-4 font-bold border-b-2">Ads</a>
+            <a href="/logout" class="text-blue-200">Logout</a>
+        </div>
+    </nav>
+
+    <div class="p-8 max-w-3xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Ad Management Configurations</h1>
+
+        <form action="/ads" method="POST" class="bg-white p-6 rounded shadow">
+
+            <h2 class="text-lg font-bold mb-4 border-b pb-2">Global Ad Placements</h2>
+
+            <div class="space-y-4 mb-6">
+                <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <span class="text-gray-700 font-medium">Bottom Banner Ads</span>
+                    <input type="checkbox" name="bannersEnabled" class="form-checkbox h-5 w-5 text-blue-600" <%= config.bannersEnabled ? 'checked' : '' %>>
+                </label>
+
+                <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <span class="text-gray-700 font-medium">App Open Ads (Cold Start/Resume)</span>
+                    <input type="checkbox" name="appOpenAdsEnabled" class="form-checkbox h-5 w-5 text-blue-600" <%= config.appOpenAdsEnabled ? 'checked' : '' %>>
+                </label>
+
+                <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <span class="text-gray-700 font-medium">Interstitial on Connect</span>
+                    <input type="checkbox" name="interstitialOnConnect" class="form-checkbox h-5 w-5 text-blue-600" <%= config.interstitialOnConnect ? 'checked' : '' %>>
+                </label>
+
+                <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <span class="text-gray-700 font-medium">Interstitial on Disconnect</span>
+                    <input type="checkbox" name="interstitialOnDisconnect" class="form-checkbox h-5 w-5 text-blue-600" <%= config.interstitialOnDisconnect ? 'checked' : '' %>>
+                </label>
+            </div>
+
+            <h2 class="text-lg font-bold mb-4 border-b pb-2">Ad Network Routing</h2>
+            <div class="mb-6">
+                <label class="block text-gray-700 mb-2">Primary Ad Network Provider</label>
+                <select name="adNetworkProvider" class="w-full border rounded p-2">
+                    <option value="AdMob" <%= config.adNetworkProvider === 'AdMob' ? 'selected' : '' %>>Google AdMob / AdX</option>
+                    <option value="Meta" <%= config.adNetworkProvider === 'Meta' ? 'selected' : '' %>>Meta Audience Network</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-2">This determines which SDK handles the primary ad requests on the Android client.</p>
+            </div>
+
+            <div class="mt-8">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-bold w-full">Save Ad Settings</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard | VPN Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-blue-800 text-white p-4 flex justify-between">
+        <div class="font-bold text-xl">Psiphon Admin</div>
+        <div>
+            <a href="/dashboard" class="mr-4">Servers</a>
+            <a href="/ads" class="mr-4">Ads</a>
+            <a href="/logout" class="text-blue-200">Logout</a>
+        </div>
+    </nav>
+
+    <div class="p-8">
+        <div class="flex justify-between mb-4">
+            <h1 class="text-2xl font-bold">VPN Servers</h1>
+            <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Add Server</a>
+        </div>
+
+        <div class="bg-white rounded shadow">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="p-4">Location</th>
+                        <th class="p-4">IP Address</th>
+                        <th class="p-4">Tier</th>
+                        <th class="p-4">Ping</th>
+                        <th class="p-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% servers.forEach(server => { %>
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-4">
+                            <span class="text-xl mr-2"><%= server.flagEmoji %></span>
+                            <%= server.name %> (<%= server.city %>)
+                        </td>
+                        <td class="p-4"><%= server.ipAddress %></td>
+                        <td class="p-4">
+                            <% if(server.isPlusOnly) { %>
+                                <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">PLUS</span>
+                            <% } else { %>
+                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">FREE</span>
+                            <% } %>
+                        </td>
+                        <td class="p-4"><%= server.pingMs %> ms</td>
+                        <td class="p-4">
+                            <a href="/edit/<%= server.id %>" class="text-blue-600 mr-3">Edit</a>
+                            <a href="/delete/<%= server.id %>" onclick="return confirm('Are you sure?');" class="text-red-600">Delete</a>
+                        </td>
+                    </tr>
+                    <% }) %>
+                    <% if(servers.length === 0) { %>
+                        <tr><td colspan="5" class="p-4 text-center text-gray-500">No servers found. Add one above.</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
