@@ -4,15 +4,24 @@ const session = require('express-session');
 const multer = require('multer');
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin (You'll need your service account json)
-// For local testing without a file, we wrap this in a try-catch.
+// Initialize Firebase Admin
 try {
-  const serviceAccount = require('./serviceAccountKey.json');
+  let serviceAccount;
+
+  // Check if credentials were provided via environment variable (Coolify preferred method)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+      // Fallback to local file for desktop testing
+      serviceAccount = require('./serviceAccountKey.json');
+  }
+
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
+  console.log("Firebase Admin Initialized Successfully");
 } catch(e) {
-  console.log("Firebase Admin not initialized. Please add serviceAccountKey.json");
+  console.error("Firebase Admin Initialization Error:", e.message);
 }
 
 const db = admin.firestore ? admin.firestore() : null;
