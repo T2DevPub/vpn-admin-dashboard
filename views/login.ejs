@@ -4,13 +4,24 @@
     <title>VPN Admin Login</title>
     <link rel="icon" type="image/png" href="/images/t2vpn_icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #1A1F29;
+            background-image: url('https://bing.biturl.top/?resolution=1920&format=image&index=0&mkt=en-US');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
-    <div class="bg-white p-8 rounded shadow-md w-96">
+<body class="flex items-center justify-center h-screen bg-gray-900 bg-opacity-60">
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-96 z-10 opacity-95">
         <div class="flex justify-center mb-6">
-            <img src="/images/t2VPN.png" alt="t2VPN Logo" class="h-10 bg-blue-800 p-2 rounded">
+            <img src="/images/t2VPN.png" alt="t2VPN Logo" class="h-12 object-contain">
         </div>
-        <h2 class="text-2xl font-bold mb-4 text-center">VPN Admin</h2>
+        <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">VPN Admin</h2>
         <% if (error) { %>
             <div class="bg-red-100 text-red-700 p-2 rounded mb-4 text-center"><%= error %></div>
         <% } %>
