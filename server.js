@@ -398,7 +398,7 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
       [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
   }
 
-  res.redirect('/dashboard');
+  res.redirect('/servers');
 });
 
 // Delete Server
@@ -406,7 +406,7 @@ app.get('/delete/:id', requireAuth, async (req, res) => {
   if (db) {
     await db.run(`DELETE FROM servers WHERE id = ?`, req.params.id);
   }
-  res.redirect('/dashboard');
+  res.redirect('/servers');
 });
 
 // Ad Management Page
