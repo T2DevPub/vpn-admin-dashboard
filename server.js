@@ -80,6 +80,36 @@ app.use(session({
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'password';
 
+// Database Schema Upgrades
+async function upgradeSchema() {
+  try {
+      const serversInfo = await db.all(`PRAGMA table_info(servers)`);
+      const hasActiveUsers = serversInfo.some(col => col.name === 'activeUsers');
+      const hasStatus = serversInfo.some(col => col.name === 'status');
+
+      if (!hasActiveUsers) {
+          await db.exec(`ALTER TABLE servers ADD COLUMN activeUsers INTEGER DEFAULT 0`);
+      }
+      if (!hasStatus) {
+          await db.exec(`ALTER TABLE servers ADD COLUMN status TEXT DEFAULT 'Online'`);
+      }
+
+      const configInfo = await db.all(`PRAGMA table_info(app_config)`);
+      const columnsToAdd = [
+          'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId',
+          'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId'
+      ];
+
+      for (const col of columnsToAdd) {
+          if (!configInfo.some(c => c.name === col)) {
+              await db.exec(`ALTER TABLE app_config ADD COLUMN ${col} TEXT`);
+          }
+      }
+  } catch (e) {
+      console.error("Schema upgrade error:", e);
+  }
+}
+
 // --- Database Setup ---
 let db;
 async function setupDatabase() {
@@ -107,18 +137,10 @@ async function setupDatabase() {
       ovpnConfig TEXT,
       vpnUsername TEXT,
       vpnPassword TEXT,
-      activeUsers INTEGER DEFAULT 0
+      activeUsers INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'Online'
     );
   `);
-
-  // Add columns for analytics and status
-  try {
-      await db.exec(`ALTER TABLE servers ADD COLUMN activeUsers INTEGER DEFAULT 0;`);
-  } catch (err) {}
-
-  try {
-      await db.exec(`ALTER TABLE servers ADD COLUMN status TEXT DEFAULT 'Online';`);
-  } catch (err) {}
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS country_stats (
@@ -158,32 +180,20 @@ async function setupDatabase() {
       bannerAdUnitId TEXT,
       appOpenAdUnitId TEXT,
       interstitialAdUnitId TEXT,
-      rewardedAdUnitId TEXT
+      rewardedAdUnitId TEXT,
+      metaBannerAdUnitId TEXT,
+      metaAppOpenAdUnitId TEXT,
+      metaInterstitialAdUnitId TEXT,
+      metaRewardedAdUnitId TEXT
     );
   `);
 
-  // Add missing columns if upgrading from previous version
-  const columns = [
-      'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId',
-      'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId'
-  ];
-  for (const col of columns) {
-      try {
-          await db.exec(`ALTER TABLE app_config ADD COLUMN ${col} TEXT`);
-      } catch (e) {
-          // Ignore if column already exists
-      }
-  }
+  await upgradeSchema();
 
   // Insert default config if none exists
   const configExists = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
   if (!configExists) {
-    try {
       await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId, metaBannerAdUnitId, metaAppOpenAdUnitId, metaInterstitialAdUnitId, metaRewardedAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '', '', '', '', '')`);
-    } catch(e) {
-      // Fallback if missing Meta columns
-      await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '')`);
-    }
   }
 }
 setupDatabase();
