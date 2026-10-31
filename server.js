@@ -163,17 +163,16 @@ async function setupDatabase() {
   `);
 
   // Add missing columns if upgrading from previous version
-  try {
-      await db.exec(`ALTER TABLE app_config ADD COLUMN bannerAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN appOpenAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN interstitialAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN rewardedAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN metaBannerAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN metaAppOpenAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN metaInterstitialAdUnitId TEXT`);
-      await db.exec(`ALTER TABLE app_config ADD COLUMN metaRewardedAdUnitId TEXT`);
-  } catch (e) {
-      // Ignore if columns already exist
+  const columns = [
+      'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId',
+      'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId'
+  ];
+  for (const col of columns) {
+      try {
+          await db.exec(`ALTER TABLE app_config ADD COLUMN ${col} TEXT`);
+      } catch (e) {
+          // Ignore if column already exists
+      }
   }
 
   // Insert default config if none exists
