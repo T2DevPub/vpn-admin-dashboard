@@ -266,7 +266,15 @@ app.get('/api/ads', async (req, res) => {
 
 // Dashboard (Stats only)
 app.get('/dashboard', requireAuth, async (req, res) => {
-  res.render('dashboard');
+  const totalUsersRow = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
+  const totalActiveUsers = totalUsersRow ? (totalUsersRow.total || 0) : 0;
+
+  let servers = [];
+  if (db) {
+    servers = await db.all(`SELECT id, status FROM servers`);
+  }
+
+  res.render('dashboard', { totalActiveUsers, servers });
 });
 
 // Servers Page
