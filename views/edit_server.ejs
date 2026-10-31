@@ -2,12 +2,16 @@
 <html>
 <head>
     <title><%= server ? 'Edit' : 'Add' %> Server | VPN Admin</title>
+    <link rel="icon" type="image/png" href="/images/t2vpn_icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
-    <nav class="bg-blue-800 text-white p-4 flex justify-between">
-        <div class="font-bold text-xl">t2VPN Admin</div>
-        <a href="/dashboard" class="text-blue-200">← Back to Dashboard</a>
+    <nav class="bg-blue-800 text-white p-4 flex justify-between items-center shadow">
+        <div class="flex items-center space-x-3">
+            <img src="/images/t2VPN.png" alt="t2VPN Logo" class="h-8 bg-white p-1 rounded">
+            <span class="font-bold text-xl">Admin Dashboard</span>
+        </div>
+        <a href="/dashboard" class="bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded">← Back to Dashboard</a>
     </nav>
 
     <div class="p-8 max-w-4xl mx-auto">
@@ -41,10 +45,6 @@
                     <label class="block text-gray-700">Port (Default: 1194)</label>
                     <input type="number" name="port" value="<%= server ? server.port : 1194 %>" class="w-full border rounded p-2 mt-1">
                 </div>
-                <div>
-                    <label class="block text-gray-700">Ping (ms)</label>
-                    <input type="number" name="pingMs" value="<%= server ? server.pingMs : 35 %>" class="w-full border rounded p-2 mt-1">
-                </div>
             </div>
 
             <div class="mb-4">
@@ -70,6 +70,14 @@
 
             <div class="mb-4">
                 <label class="block text-gray-700">Upload .ovpn Config File</label>
+
+                <% if(server && server.ovpnConfig) { %>
+                    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-3 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        An .ovpn configuration is currently saved for this server.
+                    </div>
+                <% } %>
+
                 <input type="file" name="ovpnFile" accept=".ovpn" class="w-full border rounded p-2 mt-1 bg-gray-50">
                 <p class="text-sm text-gray-500 mt-1">Uploading a new file will overwrite the existing configuration.</p>
             </div>

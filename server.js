@@ -194,7 +194,7 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
     ipAddress: data.ipAddress,
     port: parseInt(data.port) || 1194,
     protocol: data.protocol || "UDP",
-    pingMs: parseInt(data.pingMs) || 35,
+    pingMs: Math.floor(Math.random() * (120 - 20 + 1) + 20), // Simulate a random ping between 20ms and 120ms
     loadPercent: parseInt(data.loadPercent) || 40,
     isPlusOnly: isPlusOnly,
     ovpnConfig: ovpnConfig,

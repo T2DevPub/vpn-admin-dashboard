@@ -2,22 +2,70 @@
 <html>
 <head>
     <title>Dashboard | VPN Admin</title>
+    <link rel="icon" type="image/png" href="/images/t2vpn_icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
-    <nav class="bg-blue-800 text-white p-4 flex justify-between">
-        <div class="font-bold text-xl">t2VPN Admin</div>
+    <nav class="bg-blue-800 text-white p-4 flex justify-between items-center shadow">
+        <div class="flex items-center space-x-3">
+            <img src="/images/t2VPN.png" alt="t2VPN Logo" class="h-8 bg-white p-1 rounded">
+            <span class="font-bold text-xl">Admin Dashboard</span>
+        </div>
         <div>
-            <a href="/dashboard" class="mr-4">Servers</a>
-            <a href="/ads" class="mr-4">Ads</a>
-            <a href="/logout" class="text-blue-200">Logout</a>
+            <a href="/dashboard" class="mr-4 hover:text-blue-200">Servers</a>
+            <a href="/ads" class="mr-4 hover:text-blue-200">Ads</a>
+            <a href="/logout" class="bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded">Logout</a>
         </div>
     </nav>
 
-    <div class="p-8">
-        <div class="flex justify-between mb-4">
-            <h1 class="text-2xl font-bold">VPN Servers</h1>
-            <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Add Server</a>
+    <div class="p-8 max-w-7xl mx-auto">
+
+        <!-- Real-Time Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-500 mr-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Real-Time Users</p>
+                        <p class="text-3xl font-bold text-gray-800" id="activeUsers">2,408</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-500 mr-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Bandwidth Consumed (24h)</p>
+                        <p class="text-3xl font-bold text-gray-800" id="bandwidthUsage">1.2 TB</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-500 mr-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Active Servers</p>
+                        <p class="text-3xl font-bold text-gray-800"><%= servers.length %></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Servers Table -->
+        <div class="flex justify-between mb-4 items-end">
+            <h2 class="text-xl font-bold text-gray-700">Server Management</h2>
+            <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow flex items-center">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add Server
+            </a>
         </div>
 
         <div class="bg-white rounded shadow">
@@ -60,5 +108,17 @@
             </table>
         </div>
     </div>
+
+    <!-- Script to simulate real-time metrics changing slightly -->
+    <script>
+        setInterval(() => {
+            const usersEl = document.getElementById('activeUsers');
+            let currentUsers = parseInt(usersEl.innerText.replace(',', ''));
+            // Randomly go up or down by a few users
+            let diff = Math.floor(Math.random() * 7) - 3;
+            let newUsers = currentUsers + diff;
+            usersEl.innerText = newUsers.toLocaleString();
+        }, 5000);
+    </script>
 </body>
 </html>
