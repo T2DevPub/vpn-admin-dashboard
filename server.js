@@ -271,7 +271,10 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 
   let servers = [];
   if (db) {
-    servers = await db.all(`SELECT id, status FROM servers`);
+    servers = await db.all(`SELECT id, name, city, flagEmoji, ipAddress, isPlusOnly, status FROM servers`);
+    servers = servers.map(s => {
+        return {...s, isPlusOnly: s.isPlusOnly === 1};
+    });
   }
 
   res.render('dashboard', { totalActiveUsers, servers });
