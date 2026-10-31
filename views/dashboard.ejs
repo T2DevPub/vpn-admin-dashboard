@@ -101,17 +101,22 @@
                                         <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold border border-green-200">FREE</span>
                                     <% } %>
                                 </td>
-                                <td class="p-4 flex items-center" id="status-cell-<%= server.id %>">
-                                    <% if(server.status === 'Online') { %>
-                                        <div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                                        <span class="text-sm font-medium text-green-600">Online</span>
-                                    <% } else if(server.status === 'Down') { %>
-                                        <div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div>
-                                        <span class="text-sm font-medium text-red-600">Down</span>
-                                    <% } else { %>
-                                        <div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div>
-                                        <span class="text-sm font-medium text-gray-500">Checking...</span>
-                                    <% } %>
+                                <td class="p-4 flex items-center">
+                                    <div id="status-indicator-<%= server.id %>" class="flex items-center w-20">
+                                        <% if(server.status === 'Online') { %>
+                                            <div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
+                                            <span class="text-sm font-medium text-green-600">Online</span>
+                                        <% } else if(server.status === 'Down') { %>
+                                            <div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div>
+                                            <span class="text-sm font-medium text-red-600">Down</span>
+                                        <% } else { %>
+                                            <div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div>
+                                            <span class="text-sm font-medium text-gray-500">Checking...</span>
+                                        <% } %>
+                                    </div>
+                                    <button onclick="forceHealthCheck('<%= server.id %>')" class="ml-2 text-gray-400 hover:text-blue-500 focus:outline-none transition-transform hover:rotate-180 duration-300" title="Check Status Now">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    </button>
                                 </td>
                                 <td class="p-4">
                                     <a href="/edit/<%= server.id %>" class="text-blue-600 hover:text-blue-800 mr-3 font-medium transition">Edit</a>
@@ -157,12 +162,14 @@
 
                 // Update server statuses in the table
                 data.servers.forEach(server => {
-                    const cell = document.getElementById('status-cell-' + server.id);
+                    const cell = document.getElementById('status-indicator-' + server.id);
                     if (cell) {
                         if (server.status === 'Online') {
                             cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div><span class="text-sm font-medium text-green-600">Online</span>';
                         } else if (server.status === 'Down') {
                             cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Down</span>';
+                        } else {
+                            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div><span class="text-sm font-medium text-gray-500">Checking...</span>';
                         }
                     }
                 });
@@ -198,6 +205,23 @@
                 }
             } catch(e) {
                 console.error("Failed to refresh dashboard", e);
+            }
+        }
+
+        async function forceHealthCheck(id) {
+            const cell = document.getElementById('status-indicator-' + id);
+            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div><span class="text-sm font-medium text-gray-500">Checking...</span>';
+
+            try {
+                const res = await fetch('/admin/check-status/' + id, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'Online') {
+                    cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div><span class="text-sm font-medium text-green-600">Online</span>';
+                } else {
+                    cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Down</span>';
+                }
+            } catch (err) {
+                cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Error</span>';
             }
         }
 

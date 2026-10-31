@@ -12,7 +12,18 @@ const net = require('net');
 const app = express();
 
 function checkServerStatus(ip, port) {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
+        // First try ICMP Ping
+        try {
+            const resPing = await ping.promise.probe(ip, { timeout: 2 });
+            if (resPing.alive) {
+                return resolve('Online');
+            }
+        } catch (e) {
+            // Ping failed, fallback to TCP
+        }
+
+        // Fallback to TCP Socket connection
         const socket = new net.Socket();
         socket.setTimeout(2500); // 2.5 seconds timeout
         socket.on('connect', () => {
@@ -27,6 +38,8 @@ function checkServerStatus(ip, port) {
             socket.destroy();
             resolve('Down');
         });
+
+        // Use port if provided, otherwise check standard VPN ports
         socket.connect(port || 1194, ip);
     });
 }
@@ -319,7 +332,21 @@ app.get('/admin/download-ovpn/:id', requireAuth, async (req, res) => {
   res.send(server.ovpnConfig);
 });
 
-// Removed Ping functionality as per request
+// Admin API to manually force a health check for a specific server
+app.post('/admin/check-status/:id', requireAuth, async (req, res) => {
+    if (!db) return res.status(500).json({error: "DB not configured"});
+
+    const server = await db.get(`SELECT ipAddress, port FROM servers WHERE id = ?`, req.params.id);
+    if (!server) return res.status(404).json({error: "Server not found"});
+
+    try {
+        const status = await checkServerStatus(server.ipAddress, server.port);
+        await db.run(`UPDATE servers SET status = ? WHERE id = ?`, [status, req.params.id]);
+        res.json({ status: status });
+    } catch (err) {
+        res.status(500).json({error: "Status check failed"});
+    }
+});
 
 // Edit Server Page
 app.get('/edit/:id', requireAuth, async (req, res) => {
