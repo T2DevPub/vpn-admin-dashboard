@@ -88,6 +88,10 @@ async function setupDatabase() {
       await db.exec(`ALTER TABLE app_config ADD COLUMN appOpenAdUnitId TEXT`);
       await db.exec(`ALTER TABLE app_config ADD COLUMN interstitialAdUnitId TEXT`);
       await db.exec(`ALTER TABLE app_config ADD COLUMN rewardedAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN metaBannerAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN metaAppOpenAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN metaInterstitialAdUnitId TEXT`);
+      await db.exec(`ALTER TABLE app_config ADD COLUMN metaRewardedAdUnitId TEXT`);
   } catch (e) {
       // Ignore if columns already exist
   }
@@ -95,7 +99,7 @@ async function setupDatabase() {
   // Insert default config if none exists
   const configExists = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
   if (!configExists) {
-    await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '')`);
+    await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId, metaBannerAdUnitId, metaAppOpenAdUnitId, metaInterstitialAdUnitId, metaRewardedAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '', '', '', '', '')`);
   }
 }
 setupDatabase();
@@ -169,7 +173,11 @@ app.get('/api/ads', async (req, res) => {
       bannerAdUnitId: config.bannerAdUnitId || "",
       appOpenAdUnitId: config.appOpenAdUnitId || "",
       interstitialAdUnitId: config.interstitialAdUnitId || "",
-      rewardedAdUnitId: config.rewardedAdUnitId || ""
+      rewardedAdUnitId: config.rewardedAdUnitId || "",
+      metaBannerAdUnitId: config.metaBannerAdUnitId || "",
+      metaAppOpenAdUnitId: config.metaAppOpenAdUnitId || "",
+      metaInterstitialAdUnitId: config.metaInterstitialAdUnitId || "",
+      metaRewardedAdUnitId: config.metaRewardedAdUnitId || ""
   });
 });
 
@@ -311,7 +319,11 @@ app.get('/ads', requireAuth, async (req, res) => {
       bannerAdUnitId: doc.bannerAdUnitId || "",
       appOpenAdUnitId: doc.appOpenAdUnitId || "",
       interstitialAdUnitId: doc.interstitialAdUnitId || "",
-      rewardedAdUnitId: doc.rewardedAdUnitId || ""
+      rewardedAdUnitId: doc.rewardedAdUnitId || "",
+      metaBannerAdUnitId: doc.metaBannerAdUnitId || "",
+      metaAppOpenAdUnitId: doc.metaAppOpenAdUnitId || "",
+      metaInterstitialAdUnitId: doc.metaInterstitialAdUnitId || "",
+      metaRewardedAdUnitId: doc.metaRewardedAdUnitId || ""
   };
 
   res.render('ads', { config });
@@ -332,8 +344,13 @@ app.post('/ads', requireAuth, async (req, res) => {
   const interstitialId = data.interstitialAdUnitId || "";
   const rewardedId = data.rewardedAdUnitId || "";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId]);
+  const metaBannerId = data.metaBannerAdUnitId || "";
+  const metaAppOpenId = data.metaAppOpenAdUnitId || "";
+  const metaInterstitialId = data.metaInterstitialAdUnitId || "";
+  const metaRewardedId = data.metaRewardedAdUnitId || "";
+
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId]);
 
   res.redirect('/ads');
 });
