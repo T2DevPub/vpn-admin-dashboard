@@ -264,18 +264,21 @@ app.get('/api/ads', async (req, res) => {
   });
 });
 
-// Dashboard (Server List)
+// Dashboard (Stats only)
 app.get('/dashboard', requireAuth, async (req, res) => {
+  res.render('dashboard');
+});
+
+// Servers Page
+app.get('/servers', requireAuth, async (req, res) => {
   let servers = [];
-  let totalActiveUsers = 0;
   if (db) {
     servers = await db.all(`SELECT * FROM servers`);
     servers = servers.map(s => {
-        totalActiveUsers += (s.activeUsers || 0);
         return {...s, isPlusOnly: s.isPlusOnly === 1};
     });
   }
-  res.render('dashboard', { servers, totalActiveUsers });
+  res.render('servers', { servers });
 });
 
 app.get('/api/admin/dashboard-stats', requireAuth, async (req, res) => {

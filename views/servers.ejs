@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Servers | VPN Admin</title>
+    <link rel="icon" type="image/png" href="/images/t2vpn_icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-[#424A5C] text-white p-4 flex justify-between items-center shadow">
+        <div class="flex items-center space-x-3">
+            <img src="/images/t2VPN.png" alt="t2VPN Logo" class="h-8 bg-white p-1 rounded">
+            <span class="font-bold text-xl">Admin Dashboard</span>
+        </div>
+        <div>
+            <a href="/dashboard" class="mr-4 hover:text-gray-300">Dashboard</a>
+            <a href="/servers" class="mr-4 font-bold border-b-2">Servers</a>
+            <a href="/ads" class="mr-4 hover:text-gray-300">Ads</a>
+            <a href="/logout" class="bg-[#2D3340] hover:bg-[#1A1F29] px-3 py-1 rounded transition">Logout</a>
+        </div>
+    </nav>
+
+    <div class="p-8 max-w-7xl mx-auto">
+        <div class="flex justify-between mb-4 items-end">
+            <h2 class="text-2xl font-bold text-gray-700">Server Management</h2>
+            <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow flex items-center transition">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add Server
+            </a>
+        </div>
+
+        <div class="bg-white rounded shadow overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="p-4 font-semibold text-gray-600">Location</th>
+                        <th class="p-4 font-semibold text-gray-600">IP Address</th>
+                        <th class="p-4 font-semibold text-gray-600">Tier</th>
+                        <th class="p-4 font-semibold text-gray-600">Status</th>
+                        <th class="p-4 font-semibold text-gray-600">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% servers.forEach(server => { %>
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-4">
+                            <span class="text-xl mr-2"><%= server.flagEmoji %></span>
+                            <span class="font-medium text-gray-800"><%= server.name %></span> <span class="text-gray-500 text-sm">(<%= server.city %>)</span>
+                        </td>
+                        <td class="p-4 text-gray-600"><%= server.ipAddress %></td>
+                        <td class="p-4">
+                            <% if(server.isPlusOnly) { %>
+                                <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold border border-yellow-200">PLUS</span>
+                            <% } else { %>
+                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold border border-green-200">FREE</span>
+                            <% } %>
+                        </td>
+                        <td class="p-4 flex items-center">
+                            <div id="status-indicator-<%= server.id %>" class="flex items-center w-20">
+                                <% if(server.status === 'Online') { %>
+                                    <div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
+                                    <span class="text-sm font-medium text-green-600">Online</span>
+                                <% } else if(server.status === 'Down') { %>
+                                    <div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div>
+                                    <span class="text-sm font-medium text-red-600">Down</span>
+                                <% } else { %>
+                                    <div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div>
+                                    <span class="text-sm font-medium text-gray-500">Checking...</span>
+                                <% } %>
+                            </div>
+                            <button onclick="forceHealthCheck('<%= server.id %>')" class="ml-2 text-gray-400 hover:text-blue-500 focus:outline-none transition-transform hover:rotate-180 duration-300" title="Check Status Now">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </button>
+                        </td>
+                        <td class="p-4">
+                            <a href="/edit/<%= server.id %>" class="text-blue-600 hover:text-blue-800 mr-3 font-medium transition">Edit</a>
+                            <a href="/delete/<%= server.id %>" onclick="return confirm('Are you sure?');" class="text-red-500 hover:text-red-700 font-medium transition">Delete</a>
+                        </td>
+                    </tr>
+                    <% }) %>
+                    <% if(servers.length === 0) { %>
+                        <tr><td colspan="5" class="p-8 text-center text-gray-500 italic">No servers found. Add one above.</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function forceHealthCheck(id) {
+            const cell = document.getElementById('status-indicator-' + id);
+            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div><span class="text-sm font-medium text-gray-500">Checking...</span>';
+
+            try {
+                const res = await fetch('/admin/check-status/' + id, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'Online') {
+                    cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div><span class="text-sm font-medium text-green-600">Online</span>';
+                } else {
+                    cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Down</span>';
+                }
+            } catch (err) {
+                cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Error</span>';
+            }
+        }
+    </script>
+</body>
+</html>
