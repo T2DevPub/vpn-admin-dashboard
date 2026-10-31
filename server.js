@@ -13,16 +13,6 @@ const app = express();
 
 function checkServerStatus(ip, port) {
     return new Promise(async (resolve) => {
-        // First try ICMP Ping
-        try {
-            const resPing = await ping.promise.probe(ip, { timeout: 2 });
-            if (resPing.alive) {
-                return resolve('Online');
-            }
-        } catch (e) {
-            // Ping failed, fallback to TCP
-        }
-
         // Fallback to TCP Socket connection
         const socket = new net.Socket();
         socket.setTimeout(2500); // 2.5 seconds timeout
