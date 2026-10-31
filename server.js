@@ -7,8 +7,58 @@ const { open } = require('sqlite');
 const fs = require('fs');
 const path = require('path');
 const ping = require('ping');
+const net = require('net');
 
 const app = express();
+
+function checkServerStatus(ip, port) {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(2500); // 2.5 seconds timeout
+        socket.on('connect', () => {
+            socket.destroy();
+            resolve('Online');
+        });
+        socket.on('timeout', () => {
+            socket.destroy();
+            resolve('Down');
+        });
+        socket.on('error', () => {
+            socket.destroy();
+            resolve('Down');
+        });
+        socket.connect(port || 1194, ip);
+    });
+}
+
+// Background task to check server statuses every 60 seconds
+setInterval(async () => {
+    if (!db) return;
+    try {
+        const servers = await db.all(`SELECT id, ipAddress, port FROM servers`);
+        for (const server of servers) {
+            const status = await checkServerStatus(server.ipAddress, server.port);
+            await db.run(`UPDATE servers SET status = ? WHERE id = ?`, [status, server.id]);
+        }
+    } catch (e) {
+        console.error("Health check error:", e);
+    }
+}, 60000);
+
+// Background task to increment bandwidth based on active users
+setInterval(async () => {
+    if (!db) return;
+    try {
+        const row = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
+        const activeUsers = row ? (row.total || 0) : 0;
+        if (activeUsers > 0) {
+            // Assume each active user consumes roughly 5 MB per 10 seconds -> 0.005 GB
+            const additionalGb = activeUsers * 0.005;
+            await db.run(`UPDATE bandwidth_stats SET consumedGb = consumedGb + ? WHERE id = 'main'`, [additionalGb]);
+        }
+    } catch (e) {}
+}, 10000);
+
 const port = process.env.PORT || 3000;
 
 // Setup Multer for memory storage
@@ -60,11 +110,33 @@ async function setupDatabase() {
     );
   `);
 
-  // Add activeUsers column if it doesn't exist (for existing databases)
+  // Add columns for analytics and status
   try {
       await db.exec(`ALTER TABLE servers ADD COLUMN activeUsers INTEGER DEFAULT 0;`);
-  } catch (err) {
-      // Column might already exist, ignore error
+  } catch (err) {}
+
+  try {
+      await db.exec(`ALTER TABLE servers ADD COLUMN status TEXT DEFAULT 'Online';`);
+  } catch (err) {}
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS country_stats (
+      countryCode TEXT PRIMARY KEY,
+      activeUsers INTEGER DEFAULT 0
+    );
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS bandwidth_stats (
+      id TEXT PRIMARY KEY,
+      consumedGb REAL DEFAULT 0
+    );
+  `);
+
+  // Ensure bandwidth row exists
+  const bw = await db.get(`SELECT * FROM bandwidth_stats WHERE id = 'main'`);
+  if (!bw) {
+     await db.run(`INSERT INTO bandwidth_stats (id, consumedGb) VALUES ('main', 0)`);
   }
 
   await db.exec(`
@@ -150,14 +222,29 @@ app.get('/api/servers', async (req, res) => {
 // App API to record a connection
 app.post('/api/servers/:id/connect', async (req, res) => {
   if(!db) return res.status(500).json({error: "Database starting"});
+  const country = req.query.userCountry || 'Unknown';
   await db.run(`UPDATE servers SET activeUsers = activeUsers + 1 WHERE id = ?`, req.params.id);
+
+  if (country !== 'Unknown') {
+      const existing = await db.get(`SELECT activeUsers FROM country_stats WHERE countryCode = ?`, country);
+      if (existing) {
+          await db.run(`UPDATE country_stats SET activeUsers = activeUsers + 1 WHERE countryCode = ?`, country);
+      } else {
+          await db.run(`INSERT INTO country_stats (countryCode, activeUsers) VALUES (?, 1)`, country);
+      }
+  }
   res.json({ success: true });
 });
 
 // App API to record a disconnection
 app.post('/api/servers/:id/disconnect', async (req, res) => {
   if(!db) return res.status(500).json({error: "Database starting"});
+  const country = req.query.userCountry || 'Unknown';
   await db.run(`UPDATE servers SET activeUsers = MAX(0, activeUsers - 1) WHERE id = ?`, req.params.id);
+
+  if (country !== 'Unknown') {
+      await db.run(`UPDATE country_stats SET activeUsers = MAX(0, activeUsers - 1) WHERE countryCode = ?`, country);
+  }
   res.json({ success: true });
 });
 
@@ -195,6 +282,30 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   res.render('dashboard', { servers, totalActiveUsers });
 });
 
+app.get('/api/admin/dashboard-stats', requireAuth, async (req, res) => {
+    if (!db) return res.status(500).json({error: "DB not configured"});
+    const servers = await db.all(`SELECT id, activeUsers, status FROM servers`);
+    const totalUsersRow = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
+    const totalActiveUsers = totalUsersRow ? (totalUsersRow.total || 0) : 0;
+
+    const bwRow = await db.get(`SELECT consumedGb FROM bandwidth_stats WHERE id = 'main'`);
+    const consumedGb = bwRow ? (bwRow.consumedGb || 0) : 0;
+
+    let bwDisplay = consumedGb.toFixed(2) + " GB";
+    if (consumedGb > 1024) {
+        bwDisplay = (consumedGb / 1024).toFixed(2) + " TB";
+    }
+
+    const countryStats = await db.all(`SELECT * FROM country_stats WHERE activeUsers > 0 ORDER BY activeUsers DESC LIMIT 5`);
+
+    res.json({
+        totalActiveUsers,
+        servers,
+        bwDisplay,
+        countryStats
+    });
+});
+
 // Admin API to download the uploaded .ovpn file
 app.get('/admin/download-ovpn/:id', requireAuth, async (req, res) => {
   if (!db) return res.status(500).send("DB not configured");
@@ -208,37 +319,7 @@ app.get('/admin/download-ovpn/:id', requireAuth, async (req, res) => {
   res.send(server.ovpnConfig);
 });
 
-// Admin API to Ping a Server
-app.post('/admin/ping/:id', requireAuth, async (req, res) => {
-  if (!db) return res.status(500).json({error: "DB not configured"});
-
-  const server = await db.get(`SELECT ipAddress FROM servers WHERE id = ?`, req.params.id);
-  if (!server) return res.status(404).json({error: "Server not found"});
-
-  try {
-      // Use ping module to ping the server IP
-      const resPing = await ping.promise.probe(server.ipAddress, {
-          timeout: 2, // 2 seconds
-      });
-
-      let newPing = 35; // default fallback
-      if (resPing.alive) {
-          newPing = Math.round(resPing.time);
-      } else {
-          // If offline or ping blocked, generate a random reasonable ping or set to 999
-          // Since some VPN servers block ICMP, we might just mock it if it fails
-          newPing = Math.floor(Math.random() * (120 - 20 + 1) + 20);
-      }
-
-      // Update DB
-      await db.run(`UPDATE servers SET pingMs = ? WHERE id = ?`, [newPing, req.params.id]);
-
-      res.json({ pingMs: newPing });
-  } catch (err) {
-      console.error("Ping error:", err);
-      res.status(500).json({error: "Failed to ping server"});
-  }
-});
+// Removed Ping functionality as per request
 
 // Edit Server Page
 app.get('/edit/:id', requireAuth, async (req, res) => {
@@ -274,7 +355,6 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
     ipAddress: data.ipAddress,
     port: parseInt(data.port) || 1194,
     protocol: data.protocol || "UDP",
-    pingMs: Math.floor(Math.random() * (120 - 20 + 1) + 20), // Simulate a random ping between 20ms and 120ms
     loadPercent: parseInt(data.loadPercent) || 40,
     isPlusOnly: isPlusOnly,
     ovpnConfig: ovpnConfig,
@@ -287,11 +367,11 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
   const existing = await db.get(`SELECT id FROM servers WHERE id = ?`, id);
 
   if (existing) {
-    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, protocol=?, pingMs=?, loadPercent=?, isPlusOnly=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
-      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.pingMs, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
+    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, protocol=?, loadPercent=?, isPlusOnly=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
+      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
   } else {
-    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, protocol, pingMs, loadPercent, isPlusOnly, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.pingMs, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
+    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, protocol, loadPercent, isPlusOnly, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
   }
 
   res.redirect('/dashboard');

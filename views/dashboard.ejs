@@ -28,7 +28,12 @@
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500 font-medium">Real-Time Users</p>
+                        <div class="flex items-center">
+                            <p class="text-sm text-gray-500 font-medium">Real-Time Users</p>
+                            <button onclick="refreshDashboard()" class="ml-2 text-gray-400 hover:text-blue-500 focus:outline-none" title="Refresh Now">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </button>
+                        </div>
                         <p class="text-3xl font-bold text-gray-800" id="activeUsers"><%= totalActiveUsers %></p>
                     </div>
                 </div>
@@ -41,7 +46,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 font-medium">Bandwidth Consumed (24h)</p>
-                        <p class="text-3xl font-bold text-gray-800" id="bandwidthUsage">1.2 TB</p>
+                        <p class="text-3xl font-bold text-gray-800" id="bandwidthUsage">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -53,83 +58,152 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 font-medium">Active Servers</p>
-                        <p class="text-3xl font-bold text-gray-800"><%= servers.length %></p>
+                        <p class="text-3xl font-bold text-gray-800" id="activeServersCount"><%= servers.filter(s => s.status !== 'Down').length %></p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Servers Table -->
-        <div class="flex justify-between mb-4 items-end">
-            <h2 class="text-xl font-bold text-gray-700">Server Management</h2>
-            <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow flex items-center">
-                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Add Server
-            </a>
-        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Servers Table -->
+            <div class="lg:col-span-2">
+                <div class="flex justify-between mb-4 items-end">
+                    <h2 class="text-xl font-bold text-gray-700">Server Management</h2>
+                    <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow flex items-center transition">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Add Server
+                    </a>
+                </div>
 
-        <div class="bg-white rounded shadow">
-            <table class="w-full text-left">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="p-4">Location</th>
-                        <th class="p-4">IP Address</th>
-                        <th class="p-4">Tier</th>
-                        <th class="p-4">Ping</th>
-                        <th class="p-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% servers.forEach(server => { %>
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-4">
-                            <span class="text-xl mr-2"><%= server.flagEmoji %></span>
-                            <%= server.name %> (<%= server.city %>)
-                        </td>
-                        <td class="p-4"><%= server.ipAddress %></td>
-                        <td class="p-4">
-                            <% if(server.isPlusOnly) { %>
-                                <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">PLUS</span>
-                            <% } else { %>
-                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">FREE</span>
+                <div class="bg-white rounded shadow overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-4 font-semibold text-gray-600">Location</th>
+                                <th class="p-4 font-semibold text-gray-600">IP Address</th>
+                                <th class="p-4 font-semibold text-gray-600">Tier</th>
+                                <th class="p-4 font-semibold text-gray-600">Status</th>
+                                <th class="p-4 font-semibold text-gray-600">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% servers.forEach(server => { %>
+                            <tr class="border-b hover:bg-gray-50 transition">
+                                <td class="p-4">
+                                    <span class="text-xl mr-2"><%= server.flagEmoji %></span>
+                                    <span class="font-medium text-gray-800"><%= server.name %></span> <span class="text-gray-500 text-sm">(<%= server.city %>)</span>
+                                </td>
+                                <td class="p-4 text-gray-600"><%= server.ipAddress %></td>
+                                <td class="p-4">
+                                    <% if(server.isPlusOnly) { %>
+                                        <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold border border-yellow-200">PLUS</span>
+                                    <% } else { %>
+                                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold border border-green-200">FREE</span>
+                                    <% } %>
+                                </td>
+                                <td class="p-4 flex items-center" id="status-cell-<%= server.id %>">
+                                    <% if(server.status === 'Online') { %>
+                                        <div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
+                                        <span class="text-sm font-medium text-green-600">Online</span>
+                                    <% } else if(server.status === 'Down') { %>
+                                        <div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div>
+                                        <span class="text-sm font-medium text-red-600">Down</span>
+                                    <% } else { %>
+                                        <div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div>
+                                        <span class="text-sm font-medium text-gray-500">Checking...</span>
+                                    <% } %>
+                                </td>
+                                <td class="p-4">
+                                    <a href="/edit/<%= server.id %>" class="text-blue-600 hover:text-blue-800 mr-3 font-medium transition">Edit</a>
+                                    <a href="/delete/<%= server.id %>" onclick="return confirm('Are you sure?');" class="text-red-500 hover:text-red-700 font-medium transition">Delete</a>
+                                </td>
+                            </tr>
+                            <% }) %>
+                            <% if(servers.length === 0) { %>
+                                <tr><td colspan="5" class="p-8 text-center text-gray-500 italic">No servers found. Add one above.</td></tr>
                             <% } %>
-                        </td>
-                        <td class="p-4 flex items-center">
-                            <span id="ping-text-<%= server.id %>"><%= server.pingMs %> ms</span>
-                            <button onclick="pingServer('<%= server.id %>')" class="ml-2 text-gray-500 hover:text-blue-600 focus:outline-none" title="Ping Server">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                            </button>
-                        </td>
-                        <td class="p-4">
-                            <a href="/edit/<%= server.id %>" class="text-blue-600 mr-3">Edit</a>
-                            <a href="/delete/<%= server.id %>" onclick="return confirm('Are you sure?');" class="text-red-600">Delete</a>
-                        </td>
-                    </tr>
-                    <% }) %>
-                    <% if(servers.length === 0) { %>
-                        <tr><td colspan="5" class="p-4 text-center text-gray-500">No servers found. Add one above.</td></tr>
-                    <% } %>
-                </tbody>
-            </table>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Demographics Sidebar -->
+            <div class="lg:col-span-1">
+                <h2 class="text-xl font-bold text-gray-700 mb-4">User Demographics</h2>
+                <div class="bg-white rounded shadow p-6">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Top Client Regions</h3>
+
+                    <ul id="demographicsList" class="space-y-4">
+                        <!-- Populated via AJAX -->
+                        <li class="text-center text-gray-400 text-sm py-4">Loading data...</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        async function pingServer(id) {
-            const textEl = document.getElementById('ping-text-' + id);
-            textEl.innerText = 'Pinging...';
+        async function refreshDashboard() {
             try {
-                const res = await fetch('/admin/ping/' + id, { method: 'POST' });
+                const res = await fetch('/api/admin/dashboard-stats');
                 const data = await res.json();
-                if (data.pingMs) {
-                    textEl.innerText = data.pingMs + ' ms';
+
+                // Update top cards
+                document.getElementById('activeUsers').innerText = data.totalActiveUsers.toLocaleString();
+                document.getElementById('bandwidthUsage').innerText = data.bwDisplay;
+
+                const activeCount = data.servers.filter(s => s.status !== 'Down').length;
+                document.getElementById('activeServersCount').innerText = activeCount;
+
+                // Update server statuses in the table
+                data.servers.forEach(server => {
+                    const cell = document.getElementById('status-cell-' + server.id);
+                    if (cell) {
+                        if (server.status === 'Online') {
+                            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div><span class="text-sm font-medium text-green-600">Online</span>';
+                        } else if (server.status === 'Down') {
+                            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Down</span>';
+                        }
+                    }
+                });
+
+                // Update demographics
+                const list = document.getElementById('demographicsList');
+                list.innerHTML = '';
+                if (data.countryStats.length === 0) {
+                    list.innerHTML = '<li class="text-center text-gray-400 text-sm py-4">No active users yet.</li>';
                 } else {
-                    textEl.innerText = 'Failed';
+                    // Maximum for the progress bar calculation
+                    const maxUsers = Math.max(...data.countryStats.map(s => s.activeUsers));
+
+                    data.countryStats.forEach(stat => {
+                        const pct = Math.round((stat.activeUsers / maxUsers) * 100);
+                        const flagUrl = `https://flagcdn.com/24x18/${stat.countryCode.toLowerCase()}.png`;
+
+                        list.innerHTML += `
+                            <li>
+                                <div class="flex justify-between items-center mb-1">
+                                    <div class="flex items-center">
+                                        <img src="${flagUrl}" class="mr-2 border" alt="${stat.countryCode}" width="24" height="18">
+                                        <span class="text-sm font-medium text-gray-700">${stat.countryCode.toUpperCase()}</span>
+                                    </div>
+                                    <span class="text-sm font-bold text-gray-800">${stat.activeUsers.toLocaleString()}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${pct}%"></div>
+                                </div>
+                            </li>
+                        `;
+                    });
                 }
-            } catch (err) {
-                textEl.innerText = 'Error';
+            } catch(e) {
+                console.error("Failed to refresh dashboard", e);
             }
         }
+
+        // Initial fetch and auto-refresh every 10 seconds
+        refreshDashboard();
+        setInterval(refreshDashboard, 10000);
     </script>
 </body>
 </html>
