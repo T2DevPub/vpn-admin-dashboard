@@ -44,8 +44,16 @@
                     <div class="p-3 rounded-full bg-green-100 text-green-500 mr-4">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
                     </div>
-                    <div>
-                        <p class="text-sm text-gray-500 font-medium">Bandwidth Consumed (24h)</p>
+                    <div class="w-full">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-500 font-medium">Bandwidth Consumed</p>
+                            <select id="bwFilter" onchange="refreshDashboard()" class="text-xs border rounded p-1 text-gray-600 bg-gray-50 focus:outline-none">
+                                <option value="1">24 Hours</option>
+                                <option value="7">7 Days</option>
+                                <option value="30">30 Days</option>
+                                <option value="999">All Time</option>
+                            </select>
+                        </div>
                         <p class="text-3xl font-bold text-gray-800" id="bandwidthUsage">Loading...</p>
                     </div>
                 </div>
@@ -62,52 +70,41 @@
                     </div>
                 </div>
             </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-red-100 text-red-500 mr-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Down Servers</p>
+                        <p class="text-3xl font-bold text-gray-800" id="downServersCount"><%= servers.filter(s => s.status === 'Down').length %></p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Servers Table -->
+            <!-- Map Visualization -->
             <div class="lg:col-span-2">
-                <div class="flex justify-between mb-4 items-end">
-                    <h2 class="text-xl font-bold text-gray-700">Server Management</h2>
-                    <a href="/add" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow flex items-center transition">
-                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Add Server
-                    </a>
+                <h2 class="text-xl font-bold text-gray-700 mb-4">Global Active Users Map</h2>
+                <div class="bg-white rounded shadow p-4 h-[400px]">
+                    <div id="world-map" style="width: 100%; height: 100%;"></div>
                 </div>
+            </div>
 
-                <div class="bg-white rounded shadow overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-50 border-b">
-                            <tr>
-                                <th class="p-4 font-semibold text-gray-600">Location</th>
-                                <th class="p-4 font-semibold text-gray-600">IP Address</th>
-                                <th class="p-4 font-semibold text-gray-600">Tier</th>
-                                <th class="p-4 font-semibold text-gray-600">Status</th>
-                                <th class="p-4 font-semibold text-gray-600">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% servers.forEach(server => { %>
-                            <tr class="border-b hover:bg-gray-50 transition">
-                                <td class="p-4">
-                                    <span class="text-xl mr-2"><%= server.flagEmoji %></span>
-                                    <span class="font-medium text-gray-800"><%= server.name %></span> <span class="text-gray-500 text-sm">(<%= server.city %>)</span>
-                                </td>
-                                <td class="p-4 text-gray-600"><%= server.ipAddress %></td>
-                                <td class="p-4">
-                                    <% if(server.isPlusOnly) { %>
-                                        <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold border border-yellow-200">PLUS</span>
-                                    <% } else { %>
-                                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold border border-green-200">FREE</span>
-                                    <% } %>
-                                </td>
-                                <td class="p-4 flex items-center">
-                                    <div id="status-indicator-<%= server.id %>" class="flex items-center w-20">
-                                        <% if(server.status === 'Online') { %>
-                                            <div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div>
-                                            <span class="text-sm font-medium text-green-600">Online</span>
-                                        <% } else if(server.status === 'Down') { %>
-                                            <div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div>
+            <!-- Demographics Sidebar -->
+            <div class="lg:col-span-1">
+                <h2 class="text-xl font-bold text-gray-700 mb-4">User Demographics</h2>
+                <div class="bg-white rounded shadow p-6 h-[400px] overflow-y-auto">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Top Client Regions</h3>
+                    <ul id="demographicsList" class="space-y-4">
+                        <li class="text-center text-gray-400 text-sm py-4">Loading data...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
                                             <span class="text-sm font-medium text-red-600">Down</span>
                                         <% } else { %>
                                             <div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div>
@@ -148,9 +145,12 @@
     </div>
 
     <script>
+        let vectorMap;
+
         async function refreshDashboard() {
             try {
-                const res = await fetch('/api/admin/dashboard-stats');
+                const days = document.getElementById('bwFilter').value;
+                const res = await fetch('/api/admin/dashboard-stats?days=' + days);
                 const data = await res.json();
 
                 // Update top cards
@@ -160,19 +160,47 @@
                 const activeCount = data.servers.filter(s => s.status !== 'Down').length;
                 document.getElementById('activeServersCount').innerText = activeCount;
 
-                // Update server statuses in the table
-                data.servers.forEach(server => {
-                    const cell = document.getElementById('status-indicator-' + server.id);
-                    if (cell) {
-                        if (server.status === 'Online') {
-                            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div><span class="text-sm font-medium text-green-600">Online</span>';
-                        } else if (server.status === 'Down') {
-                            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Down</span>';
-                        } else {
-                            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div><span class="text-sm font-medium text-gray-500">Checking...</span>';
-                        }
-                    }
+                const downCount = data.servers.filter(s => s.status === 'Down').length;
+                document.getElementById('downServersCount').innerText = downCount;
+
+                // Process map data (uses ISO 3166-1 alpha-2 keys natively)
+                const regionData = {};
+                data.countryStats.forEach(stat => {
+                    regionData[stat.countryCode.toUpperCase()] = stat.activeUsers;
                 });
+
+                if (!vectorMap) {
+                    // Initialize Map on first load
+                    vectorMap = new jsVectorMap({
+                        selector: '#world-map',
+                        map: 'world',
+                        backgroundColor: 'transparent',
+                        regionStyle: {
+                            initial: { fill: '#e5e7eb', stroke: '#d1d5db', strokeWidth: 0.5 }
+                        },
+                        series: {
+                            regions: [{
+                                attribute: 'fill',
+                                scale: ['#93c5fd', '#1e40af'], // Light blue to dark blue gradient
+                                values: regionData,
+                                normalizeFunction: 'polynomial'
+                            }]
+                        },
+                        onRegionTooltipShow(event, tooltip, code) {
+                            const users = regionData[code] || 0;
+                            tooltip.text(
+                                `<div style="text-align:center;">
+                                    <b>${tooltip.text()}</b><br/>
+                                    Active Users: ${users.toLocaleString()}
+                                </div>`,
+                                true // Allow HTML
+                            );
+                        }
+                    });
+                } else {
+                    // Update Map data dynamically
+                    vectorMap.series.regions[0].setValues(regionData);
+                }
 
                 // Update demographics
                 const list = document.getElementById('demographicsList');
@@ -205,23 +233,6 @@
                 }
             } catch(e) {
                 console.error("Failed to refresh dashboard", e);
-            }
-        }
-
-        async function forceHealthCheck(id) {
-            const cell = document.getElementById('status-indicator-' + id);
-            cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-gray-400 mr-2 animate-pulse"></div><span class="text-sm font-medium text-gray-500">Checking...</span>';
-
-            try {
-                const res = await fetch('/admin/check-status/' + id, { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'Online') {
-                    cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2"></div><span class="text-sm font-medium text-green-600">Online</span>';
-                } else {
-                    cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Down</span>';
-                }
-            } catch (err) {
-                cell.innerHTML = '<div class="h-2.5 w-2.5 rounded-full bg-red-500 mr-2"></div><span class="text-sm font-medium text-red-600">Error</span>';
             }
         }
 

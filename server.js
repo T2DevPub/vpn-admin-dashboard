@@ -51,6 +51,11 @@ setInterval(async () => {
             // Assume each active user consumes roughly 5 MB per 10 seconds -> 0.005 GB
             const additionalGb = activeUsers * 0.005;
             await db.run(`UPDATE bandwidth_stats SET consumedGb = consumedGb + ? WHERE id = 'main'`, [additionalGb]);
+
+            // Log daily bandwidth
+            const today = new Date().toISOString().split('T')[0];
+            await db.run(`INSERT OR IGNORE INTO daily_bandwidth (date, consumedGb) VALUES (?, 0)`, [today]);
+            await db.run(`UPDATE daily_bandwidth SET consumedGb = consumedGb + ? WHERE date = ?`, [additionalGb, today]);
         }
     } catch (e) {}
 }, 10000);
@@ -125,6 +130,13 @@ async function setupDatabase() {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS bandwidth_stats (
       id TEXT PRIMARY KEY,
+      consumedGb REAL DEFAULT 0
+    );
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS daily_bandwidth (
+      date TEXT PRIMARY KEY,
       consumedGb REAL DEFAULT 0
     );
   `);
@@ -294,12 +306,24 @@ app.get('/servers', requireAuth, async (req, res) => {
 
 app.get('/api/admin/dashboard-stats', requireAuth, async (req, res) => {
     if (!db) return res.status(500).json({error: "DB not configured"});
+
+    const daysFilter = parseInt(req.query.days) || 1;
+
     const servers = await db.all(`SELECT id, activeUsers, status FROM servers`);
     const totalUsersRow = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
     const totalActiveUsers = totalUsersRow ? (totalUsersRow.total || 0) : 0;
 
-    const bwRow = await db.get(`SELECT consumedGb FROM bandwidth_stats WHERE id = 'main'`);
-    const consumedGb = bwRow ? (bwRow.consumedGb || 0) : 0;
+    let consumedGb = 0;
+    if (daysFilter === 999) {
+        // All time
+        const bwRow = await db.get(`SELECT consumedGb FROM bandwidth_stats WHERE id = 'main'`);
+        consumedGb = bwRow ? (bwRow.consumedGb || 0) : 0;
+    } else {
+        // Last X days
+        const dateLimit = new Date(Date.now() - (daysFilter - 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const bwRow = await db.get(`SELECT SUM(consumedGb) as total FROM daily_bandwidth WHERE date >= ?`, [dateLimit]);
+        consumedGb = bwRow ? (bwRow.total || 0) : 0;
+    }
 
     let bwDisplay = consumedGb.toFixed(2) + " GB";
     if (consumedGb > 1024) {
