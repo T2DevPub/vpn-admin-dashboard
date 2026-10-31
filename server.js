@@ -187,6 +187,19 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   res.render('dashboard', { servers, totalActiveUsers });
 });
 
+// Admin API to download the uploaded .ovpn file
+app.get('/admin/download-ovpn/:id', requireAuth, async (req, res) => {
+  if (!db) return res.status(500).send("DB not configured");
+
+  const server = await db.get(`SELECT name, countryCode, city, ovpnConfig FROM servers WHERE id = ?`, req.params.id);
+  if (!server || !server.ovpnConfig) return res.status(404).send("Config not found");
+
+  const filename = `${server.countryCode}_${server.city.replace(/\s+/g, '_')}.ovpn`;
+  res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-type', 'application/x-openvpn-profile');
+  res.send(server.ovpnConfig);
+});
+
 // Admin API to Ping a Server
 app.post('/admin/ping/:id', requireAuth, async (req, res) => {
   if (!db) return res.status(500).json({error: "DB not configured"});
