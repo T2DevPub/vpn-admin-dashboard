@@ -13,24 +13,17 @@ const app = express();
 
 function checkServerStatus(ip, port) {
     return new Promise(async (resolve) => {
-        // Fallback to TCP Socket connection
-        const socket = new net.Socket();
-        socket.setTimeout(2500); // 2.5 seconds timeout
-        socket.on('connect', () => {
-            socket.destroy();
-            resolve('Online');
-        });
-        socket.on('timeout', () => {
-            socket.destroy();
+        try {
+            // Check if the IP is reachable via standard ICMP Ping
+            const resPing = await ping.promise.probe(ip, { timeout: 2 });
+            if (resPing.alive) {
+                resolve('Online');
+            } else {
+                resolve('Down');
+            }
+        } catch (e) {
             resolve('Down');
-        });
-        socket.on('error', () => {
-            socket.destroy();
-            resolve('Down');
-        });
-
-        // Use port if provided, otherwise check standard VPN ports
-        socket.connect(port || 1194, ip);
+        }
     });
 }
 
