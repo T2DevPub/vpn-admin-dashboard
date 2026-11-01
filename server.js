@@ -87,6 +87,7 @@ async function upgradeSchema() {
       const hasActiveUsers = serversInfo.some(col => col.name === 'activeUsers');
       const hasStatus = serversInfo.some(col => col.name === 'status');
       const hasSkipCert = serversInfo.some(col => col.name === 'skipCertCheck');
+      const hasServerType = serversInfo.some(col => col.name === 'serverType');
 
       if (!hasActiveUsers) {
           await db.exec(`ALTER TABLE servers ADD COLUMN activeUsers INTEGER DEFAULT 0`);
@@ -96,6 +97,9 @@ async function upgradeSchema() {
       }
       if (!hasSkipCert) {
           await db.exec(`ALTER TABLE servers ADD COLUMN skipCertCheck INTEGER DEFAULT 0`);
+      }
+      if (!hasServerType) {
+          await db.exec(`ALTER TABLE servers ADD COLUMN serverType TEXT DEFAULT 'Standard'`);
       }
 
       const configInfo = await db.all(`PRAGMA table_info(app_config)`);
@@ -143,7 +147,8 @@ async function setupDatabase() {
       vpnPassword TEXT,
       activeUsers INTEGER DEFAULT 0,
       status TEXT DEFAULT 'Online',
-      skipCertCheck INTEGER DEFAULT 0
+      skipCertCheck INTEGER DEFAULT 0,
+      serverType TEXT DEFAULT 'Standard'
     );
   `);
 
@@ -422,12 +427,13 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
     countryCode: data.countryCode,
     flagEmoji: getFlagEmoji(data.countryCode),
     city: data.city,
-    ipAddress: data.ipAddress,
+    ipAddress: data.ipAddress || "",
     port: parseInt(data.port) || 1194,
     protocol: data.protocol || "UDP",
     loadPercent: parseInt(data.loadPercent) || 40,
     isPlusOnly: isPlusOnly,
     skipCertCheck: skipCertCheck,
+    serverType: data.serverType || "Standard",
     ovpnConfig: ovpnConfig,
     vpnUsername: data.vpnUsername || "",
     vpnPassword: data.vpnPassword || ""
@@ -438,11 +444,11 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
   const existing = await db.get(`SELECT id FROM servers WHERE id = ?`, id);
 
   if (existing) {
-    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, protocol=?, loadPercent=?, isPlusOnly=?, skipCertCheck=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
-      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
+    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, protocol=?, loadPercent=?, isPlusOnly=?, skipCertCheck=?, serverType=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
+      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.serverType, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
   } else {
-    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, protocol, loadPercent, isPlusOnly, skipCertCheck, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
+    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, protocol, loadPercent, isPlusOnly, skipCertCheck, serverType, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.serverType, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
   }
 
   res.redirect('/servers');

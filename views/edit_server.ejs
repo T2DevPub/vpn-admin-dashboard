@@ -37,13 +37,28 @@
                     <label class="block text-gray-700">City</label>
                     <input type="text" name="city" value="<%= server ? server.city : '' %>" class="w-full border rounded p-2 mt-1" required>
                 </div>
-                <div>
-                    <label class="block text-gray-700">IP Address / Hostname</label>
-                    <input type="text" name="ipAddress" value="<%= server ? server.ipAddress : '' %>" class="w-full border rounded p-2 mt-1" required>
+
+                <div class="col-span-2 mt-4 p-4 border rounded bg-gray-50">
+                    <label class="block text-gray-700 font-bold mb-2">Server Type</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="serverType" value="Standard" class="form-radio h-5 w-5 text-blue-600" <%= (!server || server.serverType !== 'VPNGate') ? 'checked' : '' %> onclick="toggleFields()">
+                            <span class="ml-2 text-gray-700">Standard / Own Server</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="serverType" value="VPNGate" class="form-radio h-5 w-5 text-blue-600" <%= (server && server.serverType === 'VPNGate') ? 'checked' : '' %> onclick="toggleFields()">
+                            <span class="ml-2 text-gray-700">VPN Gate (No Auth)</span>
+                        </label>
+                    </div>
                 </div>
-                <div>
+
+                <div id="ipFieldContainer">
+                    <label class="block text-gray-700">IP Address / Hostname</label>
+                    <input type="text" id="ipAddress" name="ipAddress" value="<%= server ? server.ipAddress : '' %>" class="w-full border rounded p-2 mt-1">
+                </div>
+                <div id="portFieldContainer">
                     <label class="block text-gray-700">Port (Default: 1194)</label>
-                    <input type="number" name="port" value="<%= server ? server.port : 1194 %>" class="w-full border rounded p-2 mt-1">
+                    <input type="number" id="port" name="port" value="<%= server ? server.port : 1194 %>" class="w-full border rounded p-2 mt-1">
                 </div>
             </div>
 
@@ -57,14 +72,14 @@
             <hr class="my-6">
             <h2 class="text-xl font-bold mb-4">VPN Credentials & Config</h2>
 
-            <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-2 gap-4 mb-4" id="credentialsContainer">
                 <div>
                     <label class="block text-gray-700">VPN Username</label>
-                    <input type="text" name="vpnUsername" value="<%= server ? server.vpnUsername : '' %>" class="w-full border rounded p-2 mt-1">
+                    <input type="text" id="vpnUsername" name="vpnUsername" value="<%= server ? server.vpnUsername : '' %>" class="w-full border rounded p-2 mt-1">
                 </div>
                 <div>
                     <label class="block text-gray-700">VPN Password</label>
-                    <input type="text" name="vpnPassword" value="<%= server ? server.vpnPassword : '' %>" class="w-full border rounded p-2 mt-1">
+                    <input type="text" id="vpnPassword" name="vpnPassword" value="<%= server ? server.vpnPassword : '' %>" class="w-full border rounded p-2 mt-1">
                 </div>
             </div>
 
@@ -103,6 +118,28 @@
     </div>
 
     <script>
+        function toggleFields() {
+            const isVpnGate = document.querySelector('input[name="serverType"]:checked').value === 'VPNGate';
+            const ipContainer = document.getElementById('ipFieldContainer');
+            const portContainer = document.getElementById('portFieldContainer');
+            const credContainer = document.getElementById('credentialsContainer');
+
+            if (isVpnGate) {
+                ipContainer.style.display = 'none';
+                portContainer.style.display = 'none';
+                credContainer.style.display = 'none';
+                document.getElementById('ipAddress').removeAttribute('required');
+            } else {
+                ipContainer.style.display = 'block';
+                portContainer.style.display = 'block';
+                credContainer.style.display = 'grid';
+                document.getElementById('ipAddress').setAttribute('required', 'required');
+            }
+        }
+
+        // Initialize fields on load
+        toggleFields();
+
         // Full list of ISO 3166-1 alpha-2 country codes and names
         const countries = {
             "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AD": "Andorra", "AO": "Angola", "AR": "Argentina", "AM": "Armenia", "AU": "Australia", "AT": "Austria", "AZ": "Azerbaijan",
