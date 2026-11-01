@@ -85,7 +85,12 @@
                 <% } %>
 
                 <input type="file" name="ovpnFile" accept=".ovpn" class="w-full border rounded p-2 mt-1 bg-gray-50">
-                <p class="text-sm text-gray-500 mt-1">Uploading a new file will overwrite the existing configuration.</p>
+                <p class="text-sm text-gray-500 mt-1 mb-4">Uploading a new file will overwrite the existing configuration.</p>
+
+                <label class="flex items-center mt-2">
+                    <input type="checkbox" name="skipCertCheck" class="form-checkbox h-5 w-5 text-blue-600" <%= (server && server.skipCertCheck) ? 'checked' : '' %>>
+                    <span class="ml-2 text-gray-700 font-bold">Skip Certificate Check (For FastVPN/Auth-only profiles)</span>
+                </label>
             </div>
 
             <!-- Hidden field to keep old config if no new file is uploaded -->
