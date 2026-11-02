@@ -320,7 +320,7 @@ async function pruneAndGetSessionStats() {
 
     // Join servers with active_sessions for per-server counts
     const servers = await db.all(`
-        SELECT s.id, s.status, count(a.sessionId) as activeUsers
+        SELECT s.id, s.name, s.flagEmoji, s.countryCode, s.status, count(a.sessionId) as activeUsers
         FROM servers s
         LEFT JOIN active_sessions a ON s.id = a.serverId
         GROUP BY s.id

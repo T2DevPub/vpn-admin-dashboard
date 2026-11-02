@@ -86,11 +86,13 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Map Visualization -->
+            <!-- Active Servers List -->
             <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-gray-700 mb-4">Global Active Users Map</h2>
-                <div class="bg-white rounded shadow p-4 h-[400px]">
-                    <div id="world-map" style="width: 100%; height: 100%;"></div>
+                <h2 class="text-xl font-bold text-gray-700 mb-4">Active Servers in Use</h2>
+                <div class="bg-white rounded shadow p-6 h-[400px] overflow-y-auto">
+                    <ul id="activeServersList" class="space-y-4">
+                        <li class="text-center text-gray-400 text-sm py-4">Loading data...</li>
+                    </ul>
                 </div>
             </div>
 
@@ -108,8 +110,6 @@
     </div>
 
     <script>
-        let vectorMap;
-
         async function refreshDashboard() {
             try {
                 const days = document.getElementById('bwFilter').value;
@@ -126,43 +126,40 @@
                 const downCount = data.servers.filter(s => s.status === 'Down').length;
                 document.getElementById('downServersCount').innerText = downCount;
 
-                // Process map data (uses ISO 3166-1 alpha-2 keys natively)
-                const regionData = {};
-                data.countryStats.forEach(stat => {
-                    regionData[stat.countryCode.toUpperCase()] = stat.activeUsers;
-                });
+                // Update active servers list
+                const serverList = document.getElementById('activeServersList');
+                serverList.innerHTML = '';
 
-                if (!vectorMap) {
-                    // Initialize Map on first load
-                    vectorMap = new jsVectorMap({
-                        selector: '#world-map',
-                        map: 'world',
-                        backgroundColor: 'transparent',
-                        regionStyle: {
-                            initial: { fill: '#e5e7eb', stroke: '#d1d5db', strokeWidth: 0.5 }
-                        },
-                        series: {
-                            regions: [{
-                                attribute: 'fill',
-                                scale: ['#93c5fd', '#1e40af'], // Light blue to dark blue gradient
-                                values: regionData,
-                                normalizeFunction: 'polynomial'
-                            }]
-                        },
-                        onRegionTooltipShow(event, tooltip, code) {
-                            const users = regionData[code] || 0;
-                            tooltip.text(
-                                `<div style="text-align:center;">
-                                    <b>${tooltip.text()}</b><br/>
-                                    Active Users: ${users.toLocaleString()}
-                                </div>`,
-                                true // Allow HTML
-                            );
-                        }
-                    });
+                // Filter to only include servers with active users
+                const usedServers = data.servers
+                    .filter(s => s.activeUsers > 0)
+                    .sort((a, b) => b.activeUsers - a.activeUsers);
+
+                if (usedServers.length === 0) {
+                    serverList.innerHTML = '<li class="text-center text-gray-400 text-sm py-4">No servers currently in use.</li>';
                 } else {
-                    // Update Map data dynamically
-                    vectorMap.series.regions[0].setValues(regionData);
+                    const maxServerUsers = Math.max(...usedServers.map(s => s.activeUsers));
+
+                    usedServers.forEach(server => {
+                        const pct = Math.round((server.activeUsers / maxServerUsers) * 100);
+                        const flagUrl = server.countryCode ? `https://flagcdn.com/24x18/${server.countryCode.toLowerCase()}.png` : '';
+                        const flagImg = flagUrl ? `<img src="${flagUrl}" class="mr-2 border" alt="${server.countryCode}" width="24" height="18">` : `<span class="mr-2">${server.flagEmoji || '🏳️'}</span>`;
+
+                        serverList.innerHTML += `
+                            <li>
+                                <div class="flex justify-between items-center mb-1">
+                                    <div class="flex items-center">
+                                        ${flagImg}
+                                        <span class="text-sm font-medium text-gray-700">${server.name || server.id}</span>
+                                    </div>
+                                    <span class="text-sm font-bold text-gray-800">${server.activeUsers.toLocaleString()} Users</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div class="bg-green-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
+                                </div>
+                            </li>
+                        `;
+                    });
                 }
 
                 // Update demographics
