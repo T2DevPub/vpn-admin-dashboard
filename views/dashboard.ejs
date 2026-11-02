@@ -67,7 +67,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 font-medium">Active Servers</p>
-                        <p class="text-3xl font-bold text-gray-800" id="activeServersCount"><%= servers.filter(s => s.status !== 'Down').length %></p>
+                        <p class="text-3xl font-bold text-gray-800" id="activeServersCount"><%= servers.filter(s => s.status !== 'Down').length %> / <%= servers.length %></p>
                     </div>
                 </div>
             </div>
@@ -121,7 +121,7 @@
                 document.getElementById('bandwidthUsage').innerText = data.bwDisplay;
 
                 const activeCount = data.servers.filter(s => s.status !== 'Down').length;
-                document.getElementById('activeServersCount').innerText = activeCount;
+                document.getElementById('activeServersCount').innerText = `${activeCount} / ${data.servers.length}`;
 
                 const downCount = data.servers.filter(s => s.status === 'Down').length;
                 document.getElementById('downServersCount').innerText = downCount;
