@@ -11,41 +11,51 @@ const net = require('net');
 
 const app = express();
 
-function checkServerStatus(ip, port, protocol) {
-    return new Promise((resolve) => {
+function checkTcpPort(ip, port) {
+    return new Promise((resolve, reject) => {
         const socket = new net.Socket();
-        let status = 'Down';
-
-        socket.setTimeout(2500); // 2.5 seconds timeout
+        socket.setTimeout(2500);
 
         socket.on('connect', () => {
-            status = 'Online';
             socket.destroy();
+            resolve(true);
         });
 
         socket.on('timeout', () => {
             socket.destroy();
+            reject(new Error('timeout'));
         });
 
         socket.on('error', () => {
             socket.destroy();
+            reject(new Error('error'));
         });
-
-        socket.on('close', () => {
-            resolve(status);
-        });
-
-        // If it's a UDP server, a TCP check on the VPN port will fail.
-        // As a fallback to check if the machine is alive, we ping port 22 (SSH).
-        // Otherwise, we test the actual VPN port via TCP.
-        const checkPort = (protocol && protocol.toLowerCase() === 'udp') ? 22 : (port || 22);
 
         try {
-            socket.connect(checkPort, ip);
+            socket.connect(port, ip);
         } catch (e) {
-            resolve('Down');
+            reject(e);
         }
     });
+}
+
+async function checkServerStatus(ip, port, protocol) {
+    // OpenVPN Access Server typically exposes 443 and 943 for web UIs,
+    // and 22 is SSH. We'll try them all concurrently.
+    const portsToTry = [443, 943, 80, 22];
+
+    if (port && protocol && protocol.toLowerCase() === 'tcp') {
+        portsToTry.unshift(port); // prioritize their custom TCP port
+    }
+
+    try {
+        // Promise.any resolves if AT LEAST ONE port connects successfully
+        await Promise.any(portsToTry.map(p => checkTcpPort(ip, p)));
+        return 'Online';
+    } catch (e) {
+        // AggregateError is thrown if ALL ports fail to connect
+        return 'Down';
+    }
 }
 
 // Background task to check server statuses every 60 seconds
