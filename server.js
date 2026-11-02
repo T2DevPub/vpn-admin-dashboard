@@ -153,6 +153,15 @@ async function setupDatabase() {
   `);
 
   await db.exec(`
+    CREATE TABLE IF NOT EXISTS active_sessions (
+      sessionId TEXT PRIMARY KEY,
+      serverId TEXT,
+      countryCode TEXT,
+      lastUpdate INTEGER
+    );
+  `);
+
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS country_stats (
       countryCode TEXT PRIMARY KEY,
       activeUsers INTEGER DEFAULT 0
@@ -255,34 +264,67 @@ app.get('/api/servers', async (req, res) => {
   res.json(mapped);
 });
 
-// App API to record a connection
+// App API to record a connection (now acts as a heartbeat)
 app.post('/api/servers/:id/connect', async (req, res) => {
   if(!db) return res.status(500).json({error: "Database starting"});
-  const country = req.query.userCountry || 'Unknown';
-  await db.run(`UPDATE servers SET activeUsers = activeUsers + 1 WHERE id = ?`, req.params.id);
-
-  if (country !== 'Unknown') {
-      const existing = await db.get(`SELECT activeUsers FROM country_stats WHERE countryCode = ?`, country);
-      if (existing) {
-          await db.run(`UPDATE country_stats SET activeUsers = activeUsers + 1 WHERE countryCode = ?`, country);
-      } else {
-          await db.run(`INSERT INTO country_stats (countryCode, activeUsers) VALUES (?, 1)`, country);
-      }
-  }
-  res.json({ success: true });
+  res.json({ success: true }); // Legacy endpoint, keep for backwards compatibility if needed
 });
 
 // App API to record a disconnection
 app.post('/api/servers/:id/disconnect', async (req, res) => {
   if(!db) return res.status(500).json({error: "Database starting"});
-  const country = req.query.userCountry || 'Unknown';
-  await db.run(`UPDATE servers SET activeUsers = MAX(0, activeUsers - 1) WHERE id = ?`, req.params.id);
-
-  if (country !== 'Unknown') {
-      await db.run(`UPDATE country_stats SET activeUsers = MAX(0, activeUsers - 1) WHERE countryCode = ?`, country);
+  const sessionId = req.query.sessionId || req.body.sessionId;
+  if (sessionId) {
+      await db.run(`DELETE FROM active_sessions WHERE sessionId = ?`, sessionId);
   }
   res.json({ success: true });
 });
+
+// Real-time Heartbeat endpoint for active sessions
+app.post('/api/servers/:id/heartbeat', async (req, res) => {
+    if(!db) return res.status(500).json({error: "Database starting"});
+
+    const serverId = req.params.id;
+    const countryCode = req.query.userCountry || 'Unknown';
+    const sessionId = req.query.sessionId || req.body.sessionId;
+
+    if (!sessionId) return res.status(400).json({error: "Missing sessionId"});
+
+    const now = Date.now();
+    await db.run(`
+        INSERT INTO active_sessions (sessionId, serverId, countryCode, lastUpdate)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(sessionId) DO UPDATE SET lastUpdate = excluded.lastUpdate, serverId = excluded.serverId
+    `, [sessionId, serverId, countryCode, now]);
+
+// Dashboard Helper function to prune stale sessions
+async function pruneAndGetSessionStats() {
+    if (!db) return { totalActiveUsers: 0, servers: [], countryStats: [] };
+
+    const cutoffTime = Date.now() - 90000; // 90 seconds (assuming 60s heartbeats from app)
+    await db.run(`DELETE FROM active_sessions WHERE lastUpdate < ?`, cutoffTime);
+
+    const totalRow = await db.get(`SELECT count(*) as total FROM active_sessions`);
+    const totalActiveUsers = totalRow ? totalRow.total : 0;
+
+    const countryStats = await db.all(`
+        SELECT countryCode, count(*) as activeUsers
+        FROM active_sessions
+        WHERE countryCode != 'Unknown' AND countryCode != ''
+        GROUP BY countryCode
+        ORDER BY activeUsers DESC
+    `);
+
+    // Join servers with active_sessions for per-server counts
+    const servers = await db.all(`
+        SELECT s.id, s.status, count(a.sessionId) as activeUsers
+        FROM servers s
+        LEFT JOIN active_sessions a ON s.id = a.serverId
+        GROUP BY s.id
+    `);
+
+    return { totalActiveUsers, servers, countryStats };
+}
 
 app.get('/api/ads', async (req, res) => {
   if(!db) return res.status(500).json({error: "Database starting"});
@@ -306,24 +348,14 @@ app.get('/api/ads', async (req, res) => {
 
 // Dashboard (Stats only)
 app.get('/dashboard', requireAuth, async (req, res) => {
-  const totalUsersRow = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
-  const totalActiveUsers = totalUsersRow ? (totalUsersRow.total || 0) : 0;
-
-  let servers = [];
-  if (db) {
-    servers = await db.all(`SELECT id, status FROM servers`);
-  }
-
+  const { totalActiveUsers, servers } = await pruneAndGetSessionStats();
   res.render('dashboard', { totalActiveUsers, servers });
 });
 
 // Reset Active Users API
 app.post('/api/admin/reset-users', requireAuth, async (req, res) => {
   if (!db) return res.status(500).json({error: "DB not configured"});
-
-  await db.run(`UPDATE servers SET activeUsers = 0`);
-  await db.run(`UPDATE country_stats SET activeUsers = 0`);
-
+  await db.run(`DELETE FROM active_sessions`);
   res.json({ success: true });
 });
 
@@ -332,8 +364,12 @@ app.get('/servers', requireAuth, async (req, res) => {
   let servers = [];
   if (db) {
     servers = await db.all(`SELECT * FROM servers`);
+
+    const { servers: activeServersMap } = await pruneAndGetSessionStats();
+
     servers = servers.map(s => {
-        return {...s, isPlusOnly: s.isPlusOnly === 1};
+        const activeData = activeServersMap.find(as => as.id === s.id);
+        return {...s, isPlusOnly: s.isPlusOnly === 1, activeUsers: activeData ? activeData.activeUsers : 0 };
     });
   }
   res.render('servers', { servers });
@@ -344,9 +380,7 @@ app.get('/api/admin/dashboard-stats', requireAuth, async (req, res) => {
 
     const daysFilter = parseInt(req.query.days) || 1;
 
-    const servers = await db.all(`SELECT id, activeUsers, status FROM servers`);
-    const totalUsersRow = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
-    const totalActiveUsers = totalUsersRow ? (totalUsersRow.total || 0) : 0;
+    const { totalActiveUsers, servers, countryStats } = await pruneAndGetSessionStats();
 
     let consumedGb = 0;
     if (daysFilter === 999) {
@@ -364,8 +398,6 @@ app.get('/api/admin/dashboard-stats', requireAuth, async (req, res) => {
     if (consumedGb > 1024) {
         bwDisplay = (consumedGb / 1024).toFixed(2) + " TB";
     }
-
-    const countryStats = await db.all(`SELECT * FROM country_stats WHERE activeUsers > 0 ORDER BY activeUsers DESC LIMIT 5`);
 
     res.json({
         totalActiveUsers,
