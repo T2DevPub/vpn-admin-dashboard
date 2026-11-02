@@ -297,6 +297,9 @@ app.post('/api/servers/:id/heartbeat', async (req, res) => {
         ON CONFLICT(sessionId) DO UPDATE SET lastUpdate = excluded.lastUpdate, serverId = excluded.serverId
     `, [sessionId, serverId, countryCode, now]);
 
+    res.json({ success: true });
+});
+
 // Dashboard Helper function to prune stale sessions
 async function pruneAndGetSessionStats() {
     if (!db) return { totalActiveUsers: 0, servers: [], countryStats: [] };
