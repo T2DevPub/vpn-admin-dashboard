@@ -304,7 +304,7 @@ app.post('/api/servers/:id/heartbeat', async (req, res) => {
 async function pruneAndGetSessionStats() {
     if (!db) return { totalActiveUsers: 0, servers: [], countryStats: [] };
 
-    const cutoffTime = Date.now() - 90000; // 90 seconds (assuming 60s heartbeats from app)
+    const cutoffTime = Date.now() - 35000; // Aggressive 35 second prune (assuming 15s heartbeats from app)
     await db.run(`DELETE FROM active_sessions WHERE lastUpdate < ?`, cutoffTime);
 
     const totalRow = await db.get(`SELECT count(*) as total FROM active_sessions`);
