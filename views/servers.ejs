@@ -68,9 +68,15 @@
                 <tbody>
                     <% servers.forEach(server => { %>
                     <tr class="border-b hover:bg-gray-50 transition">
-                        <td class="p-4">
-                            <span class="text-xl mr-2"><%= server.flagEmoji %></span>
-                            <span class="font-medium text-gray-800"><%= server.name %></span> <span class="text-gray-500 text-sm">(<%= server.city %>)</span>
+                        <td class="p-4 flex items-center">
+                            <% if (server.countryCode) { %>
+                                <img src="https://flagcdn.com/24x18/<%= server.countryCode.toLowerCase() %>.png" class="mr-3 border" alt="<%= server.countryCode %>" width="24" height="18">
+                            <% } else { %>
+                                <span class="text-xl mr-3"><%= server.flagEmoji %></span>
+                            <% } %>
+                            <div>
+                                <span class="font-medium text-gray-800"><%= server.name %></span> <span class="text-gray-500 text-sm">(<%= server.city %>)</span>
+                            </div>
                         </td>
                         <td class="p-4 text-gray-600"><%= server.ipAddress %></td>
                         <td class="p-4">
