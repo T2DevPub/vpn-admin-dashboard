@@ -317,6 +317,16 @@ app.get('/dashboard', requireAuth, async (req, res) => {
   res.render('dashboard', { totalActiveUsers, servers });
 });
 
+// Reset Active Users API
+app.post('/api/admin/reset-users', requireAuth, async (req, res) => {
+  if (!db) return res.status(500).json({error: "DB not configured"});
+
+  await db.run(`UPDATE servers SET activeUsers = 0`);
+  await db.run(`UPDATE country_stats SET activeUsers = 0`);
+
+  res.json({ success: true });
+});
+
 // Servers Page
 app.get('/servers', requireAuth, async (req, res) => {
   let servers = [];
