@@ -11,11 +11,40 @@ const net = require('net');
 
 const app = express();
 
-function checkServerStatus(ip, port) {
+function checkServerStatus(ip, port, protocol) {
     return new Promise((resolve) => {
-        // Simplified logic: ICMP (Ping) is frequently blocked by cloud firewalls,
-        // causing false "Down" reports. We will assume "Online" for now.
-        resolve('Online');
+        const socket = new net.Socket();
+        let status = 'Down';
+
+        socket.setTimeout(2500); // 2.5 seconds timeout
+
+        socket.on('connect', () => {
+            status = 'Online';
+            socket.destroy();
+        });
+
+        socket.on('timeout', () => {
+            socket.destroy();
+        });
+
+        socket.on('error', () => {
+            socket.destroy();
+        });
+
+        socket.on('close', () => {
+            resolve(status);
+        });
+
+        // If it's a UDP server, a TCP check on the VPN port will fail.
+        // As a fallback to check if the machine is alive, we ping port 22 (SSH).
+        // Otherwise, we test the actual VPN port via TCP.
+        const checkPort = (protocol && protocol.toLowerCase() === 'udp') ? 22 : (port || 22);
+
+        try {
+            socket.connect(checkPort, ip);
+        } catch (e) {
+            resolve('Down');
+        }
     });
 }
 
@@ -23,9 +52,9 @@ function checkServerStatus(ip, port) {
 setInterval(async () => {
     if (!db) return;
     try {
-        const servers = await db.all(`SELECT id, ipAddress, port FROM servers`);
+        const servers = await db.all(`SELECT id, ipAddress, port, protocol FROM servers`);
         for (const server of servers) {
-            const status = await checkServerStatus(server.ipAddress, server.port);
+            const status = await checkServerStatus(server.ipAddress, server.port, server.protocol);
             await db.run(`UPDATE servers SET status = ? WHERE id = ?`, [status, server.id]);
         }
     } catch (e) {
