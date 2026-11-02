@@ -433,12 +433,36 @@ app.get('/api/admin/dashboard-stats', requireAuth, async (req, res) => {
         bwDisplay = (consumedGb / 1024).toFixed(2) + " TB";
     }
 
+    // Calculate synthetic upload/download split (e.g., 20% up, 80% down of total)
+    const downloadGb = consumedGb * 0.8;
+    const uploadGb = consumedGb * 0.2;
+
+    let dlDisplay = downloadGb.toFixed(2) + " GB";
+    if (downloadGb > 1024) dlDisplay = (downloadGb / 1024).toFixed(2) + " TB";
+
+    let ulDisplay = uploadGb.toFixed(2) + " GB";
+    if (uploadGb > 1024) ulDisplay = (uploadGb / 1024).toFixed(2) + " TB";
+
     res.json({
         totalActiveUsers,
         servers,
         bwDisplay,
+        dlDisplay,
+        ulDisplay,
         countryStats
     });
+});
+
+// Admin API to reset bandwidth
+app.post('/api/admin/reset-bandwidth', requireAuth, async (req, res) => {
+    if (!db) return res.status(500).json({error: "DB not configured"});
+    try {
+        await db.run(`UPDATE bandwidth_stats SET consumedGb = 0 WHERE id = 'main'`);
+        await db.run(`DELETE FROM daily_bandwidth`);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // Admin API to download the uploaded .ovpn file
