@@ -76,7 +76,7 @@ setInterval(async () => {
 setInterval(async () => {
     if (!db) return;
     try {
-        const row = await db.get(`SELECT SUM(activeUsers) as total FROM servers`);
+        const row = await db.get(`SELECT count(*) as total FROM active_sessions`);
         const activeUsers = row ? (row.total || 0) : 0;
         if (activeUsers > 0) {
             // Assume each active user consumes roughly 5 MB per 10 seconds -> 0.005 GB
@@ -234,9 +234,22 @@ async function setupDatabase() {
       metaBannerAdUnitId TEXT,
       metaAppOpenAdUnitId TEXT,
       metaInterstitialAdUnitId TEXT,
-      metaRewardedAdUnitId TEXT
+      metaRewardedAdUnitId TEXT,
+      maintenanceMode INTEGER DEFAULT 0,
+      maintenanceEndTime TEXT
     );
   `);
+
+  // Ensure the columns exist if the table was already created
+  try {
+      const columns = await db.all("PRAGMA table_info(app_config)");
+      if (!columns.some(col => col.name === 'maintenanceMode')) {
+          await db.exec(`ALTER TABLE app_config ADD COLUMN maintenanceMode INTEGER DEFAULT 0`);
+          await db.exec(`ALTER TABLE app_config ADD COLUMN maintenanceEndTime TEXT`);
+      }
+  } catch(e) {
+      console.error("Error migrating app_config table:", e);
+  }
 
   await upgradeSchema();
 
@@ -342,10 +355,9 @@ async function pruneAndGetSessionStats() {
     const totalActiveUsers = totalRow ? totalRow.total : 0;
 
     const countryStats = await db.all(`
-        SELECT countryCode, count(*) as activeUsers
+        SELECT CASE WHEN countryCode = '' OR countryCode IS NULL THEN 'Unknown' ELSE countryCode END as countryCode, count(*) as activeUsers
         FROM active_sessions
-        WHERE countryCode != 'Unknown' AND countryCode != ''
-        GROUP BY countryCode
+        GROUP BY CASE WHEN countryCode = '' OR countryCode IS NULL THEN 'Unknown' ELSE countryCode END
         ORDER BY activeUsers DESC
     `);
 
@@ -556,10 +568,45 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
 
 // Delete Server
 app.get('/delete/:id', requireAuth, async (req, res) => {
+  // DO NOT DELETE SERVERS AS REQUESTED BY USER
+  // We'll leave the route but maybe it shouldn't actually delete if they have users?
+  // User explicitly said "Please do not delete any servers as this admin panel is live" - that probably means me as the AI, but leaving the functionality intact for the admin is fine, I just shouldn't delete rows from the DB myself.
   if (db) {
     await db.run(`DELETE FROM servers WHERE id = ?`, req.params.id);
   }
   res.redirect('/servers');
+});
+
+// Settings Page
+app.get('/settings', requireAuth, async (req, res) => {
+  if (!db) return res.send("DB not configured");
+  const doc = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
+  const settings = {
+      maintenanceMode: doc.maintenanceMode === 1,
+      maintenanceEndTime: doc.maintenanceEndTime || ''
+  };
+  res.render('settings', { settings });
+});
+
+app.post('/settings', requireAuth, async (req, res) => {
+    if (!db) return res.status(500).send("DB error");
+    const { maintenanceMode, maintenanceEndTime } = req.body;
+    await db.run(`
+        UPDATE app_config
+        SET maintenanceMode = ?, maintenanceEndTime = ?
+        WHERE id = 'ads'
+    `, [maintenanceMode === 'on' ? 1 : 0, maintenanceEndTime || null]);
+    res.redirect('/settings');
+});
+
+// Settings API for App
+app.get('/api/settings', async (req, res) => {
+    if(!db) return res.status(500).json({error: "Database starting"});
+    const config = await db.get(`SELECT maintenanceMode, maintenanceEndTime FROM app_config WHERE id = 'ads'`);
+    res.json({
+        maintenanceMode: config ? config.maintenanceMode === 1 : false,
+        maintenanceEndTime: config ? config.maintenanceEndTime : null
+    });
 });
 
 // Ad Management Page
