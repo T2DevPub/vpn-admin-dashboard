@@ -190,13 +190,20 @@
 
                     data.countryStats.forEach(stat => {
                         const pct = Math.round((stat.activeUsers / maxUsers) * 100);
-                        const flagUrl = `https://flagcdn.com/24x18/${stat.countryCode.toLowerCase()}.png`;
+
+                        let iconHtml;
+                        if (stat.countryCode.toLowerCase() === 'unknown') {
+                            iconHtml = `<svg class="w-6 h-4 mr-2 text-gray-400 border border-gray-200 bg-gray-50 px-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                        } else {
+                            const flagUrl = `https://flagcdn.com/24x18/${stat.countryCode.toLowerCase()}.png`;
+                            iconHtml = `<img src="${flagUrl}" class="mr-2 border" alt="${stat.countryCode}" width="24" height="18">`;
+                        }
 
                         list.innerHTML += `
                             <li>
                                 <div class="flex justify-between items-center mb-1">
                                     <div class="flex items-center">
-                                        <img src="${flagUrl}" class="mr-2 border" alt="${stat.countryCode}" width="24" height="18">
+                                        ${iconHtml}
                                         <span class="text-sm font-medium text-gray-700">${stat.countryCode.toUpperCase()}</span>
                                     </div>
                                     <span class="text-sm font-bold text-gray-800">${stat.activeUsers.toLocaleString()}</span>
