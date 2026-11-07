@@ -213,6 +213,15 @@ async function setupDatabase() {
     );
   `);
 
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS device_usage (
+      deviceId TEXT,
+      date TEXT,
+      consumedBytes REAL DEFAULT 0,
+      PRIMARY KEY (deviceId, date)
+    );
+  `);
+
   // Ensure bandwidth row exists
   const bw = await db.get(`SELECT * FROM bandwidth_stats WHERE id = 'main'`);
   if (!bw) {
@@ -599,6 +608,43 @@ app.post('/settings', requireAuth, async (req, res) => {
     res.redirect('/settings');
 });
 
+// Device Usage APIs for Android App
+app.post('/api/device/sync', express.json(), async (req, res) => {
+    if(!db) return res.status(500).json({error: "Database starting"});
+    const { deviceId, bytes } = req.body;
+    if (!deviceId || !bytes) return res.status(400).json({error: "Missing data"});
+
+    const today = new Date().toISOString().split('T')[0];
+    try {
+        await db.run(`INSERT OR IGNORE INTO device_usage (deviceId, date, consumedBytes) VALUES (?, ?, 0)`, [deviceId, today]);
+        await db.run(`UPDATE device_usage SET consumedBytes = consumedBytes + ? WHERE deviceId = ? AND date = ?`, [bytes, deviceId, today]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error("Device sync error:", e);
+        res.status(500).json({error: "Server error"});
+    }
+});
+
+app.get('/api/device/status', async (req, res) => {
+    if(!db) return res.status(500).json({error: "Database starting"});
+    const deviceId = req.query.deviceId;
+    if (!deviceId) return res.status(400).json({error: "Missing deviceId"});
+
+    const today = new Date().toISOString().split('T')[0];
+    try {
+        const row = await db.get(`SELECT consumedBytes FROM device_usage WHERE deviceId = ? AND date = ?`, [deviceId, today]);
+        const bytes = row ? row.consumedBytes : 0;
+        // 2GB in bytes = 2147483648
+        const limitBytes = 2 * 1024 * 1024 * 1024;
+        res.json({
+            exceeded: bytes > limitBytes,
+            consumedBytes: bytes
+        });
+    } catch(e) {
+        res.status(500).json({error: "Server error"});
+    }
+});
+
 // Settings API for App
 app.get('/api/settings', async (req, res) => {
     if(!db) return res.status(500).json({error: "Database starting"});
@@ -607,6 +653,42 @@ app.get('/api/settings', async (req, res) => {
         maintenanceMode: config ? config.maintenanceMode === 1 : false,
         maintenanceEndTime: config ? config.maintenanceEndTime : null
     });
+});
+
+// Device Management Page (Admin)
+app.get('/devices', requireAuth, async (req, res) => {
+    if (!db) return res.send("DB not configured");
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get all devices that have used data today, sorted by highest usage
+    const devices = await db.all(`
+        SELECT deviceId, consumedBytes
+        FROM device_usage
+        WHERE date = ?
+        ORDER BY consumedBytes DESC
+    `, [today]);
+
+    // Format bytes for display
+    const formattedDevices = devices.map(d => {
+        let display = (d.consumedBytes / (1024 * 1024)).toFixed(2) + ' MB';
+        if (d.consumedBytes > (1024 * 1024 * 1024)) {
+            display = (d.consumedBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+        return {
+            id: d.deviceId,
+            consumedDisplay: display,
+            isThrottled: d.consumedBytes > (2 * 1024 * 1024 * 1024)
+        };
+    });
+
+    res.render('devices', { devices: formattedDevices });
+});
+
+app.post('/devices/reset/:id', requireAuth, async (req, res) => {
+    if (!db) return res.status(500).send("DB error");
+    const today = new Date().toISOString().split('T')[0];
+    await db.run(`UPDATE device_usage SET consumedBytes = 0 WHERE deviceId = ? AND date = ?`, [req.params.id, today]);
+    res.redirect('/devices');
 });
 
 // Ad Management Page
