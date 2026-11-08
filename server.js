@@ -658,15 +658,41 @@ app.get('/api/settings', async (req, res) => {
 // Device Management Page (Admin)
 app.get('/devices', requireAuth, async (req, res) => {
     if (!db) return res.send("DB not configured");
-    const today = new Date().toISOString().split('T')[0];
 
-    // Get all devices that have used data today, sorted by highest usage
+    const limit = 50;
+    const page = parseInt(req.query.page) || 1;
+    const offset = (page - 1) * limit;
+
+    const today = new Date().toISOString().split('T')[0];
+    const selectedDate = req.query.date || today;
+    const status = req.query.status || 'all';
+
+    let statusCondition = "";
+    const throttleLimit = 2 * 1024 * 1024 * 1024; // 2GB in bytes
+
+    if (status === 'throttled') {
+        statusCondition = `AND consumedBytes > ${throttleLimit}`;
+    } else if (status === 'normal') {
+        statusCondition = `AND consumedBytes <= ${throttleLimit}`;
+    }
+
+    // Count total for pagination
+    const countRow = await db.get(`
+        SELECT count(*) as total
+        FROM device_usage
+        WHERE date = ? ${statusCondition}
+    `, [selectedDate]);
+    const totalRecords = countRow ? countRow.total : 0;
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    // Get devices with pagination and filters
     const devices = await db.all(`
         SELECT deviceId, consumedBytes
         FROM device_usage
-        WHERE date = ?
+        WHERE date = ? ${statusCondition}
         ORDER BY consumedBytes DESC
-    `, [today]);
+        LIMIT ? OFFSET ?
+    `, [selectedDate, limit, offset]);
 
     // Format bytes for display
     const formattedDevices = devices.map(d => {
@@ -677,18 +703,28 @@ app.get('/devices', requireAuth, async (req, res) => {
         return {
             id: d.deviceId,
             consumedDisplay: display,
-            isThrottled: d.consumedBytes > (2 * 1024 * 1024 * 1024)
+            isThrottled: d.consumedBytes > throttleLimit
         };
     });
 
-    res.render('devices', { devices: formattedDevices });
+    res.render('devices', {
+        devices: formattedDevices,
+        selectedDate,
+        status,
+        page,
+        totalPages
+    });
 });
 
 app.post('/devices/reset/:id', requireAuth, async (req, res) => {
     if (!db) return res.status(500).send("DB error");
-    const today = new Date().toISOString().split('T')[0];
-    await db.run(`UPDATE device_usage SET consumedBytes = 0 WHERE deviceId = ? AND date = ?`, [req.params.id, today]);
-    res.redirect('/devices');
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    await db.run(`UPDATE device_usage SET consumedBytes = 0 WHERE deviceId = ? AND date = ?`, [req.params.id, date]);
+
+    // Redirect back to the same page with existing filters
+    const status = req.query.status || 'all';
+    const page = req.query.page || 1;
+    res.redirect(`/devices?date=${date}&status=${status}&page=${page}`);
 });
 
 // Ad Management Page
