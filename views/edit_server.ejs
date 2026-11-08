@@ -38,10 +38,11 @@
                     <input type="text" name="city" value="<%= server ? server.city : '' %>" class="w-full border rounded p-2 mt-1" required>
                 </div>
 
-                <div class="col-span-2 mt-4 p-4 border rounded bg-gray-50">
+                <div class="col-span-2 mt-4">
                     
 
-                <div id="ipFieldContainer">
+                <div class="grid grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 border rounded">
+<div id="ipFieldContainer">
                     <label class="block text-gray-700">IP Address / Hostname</label>
                     <input type="text" id="ipAddress" name="ipAddress" value="<%= server ? server.ipAddress : '' %>" class="w-full border rounded p-2 mt-1">
                 </div>
@@ -50,8 +51,8 @@
                     <input type="number" id="port" name="port" value="<%= server ? server.port : 1194 %>" class="w-full border rounded p-2 mt-1">
                 </div>
             </div>
-
-            <div class="mb-4">
+</div>
+<div class="mb-4">
                 <label class="flex items-center">
                     <input type="checkbox" name="isPlusOnly" class="form-checkbox h-5 w-5 text-blue-600" <%= (server && server.isPlusOnly) ? 'checked' : '' %>>
                     <span class="ml-2 text-gray-700 font-bold">Premium Server (Plus Only)</span>
@@ -71,9 +72,10 @@
                     <input type="text" id="vpnPassword" name="vpnPassword" value="<%= server ? server.vpnPassword : '' %>" class="w-full border rounded p-2 mt-1">
                 </div>
             </div>
-
-            <div class="mb-4">
-                <label class="block text-gray-700">Upload .ovpn Config File</label>
+</div>
+<div class="mb-4">
+                <div class="col-span-2 mt-4 bg-gray-50 p-4 border rounded">
+<label class="block text-gray-700 font-bold mb-2">Upload .ovpn Config File</label>
 
                 <% if(server && server.ovpnConfig) { %>
                     <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-3 flex items-center justify-between">
@@ -97,7 +99,8 @@
             <!-- Hidden field to keep old config if no new file is uploaded -->
             <input type="hidden" name="existingOvpn" value="<%= server ? server.ovpnConfig : '' %>">
 
-            <div class="mt-8">
+            </div>
+<div class="mt-8">
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-bold">Save Server</button>
             </div>
         </form>
