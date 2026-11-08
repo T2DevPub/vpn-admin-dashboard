@@ -76,17 +76,24 @@ setInterval(async () => {
 setInterval(async () => {
     if (!db) return;
     try {
-        const row = await db.get(`SELECT count(*) as total FROM active_sessions`);
-        const activeUsers = row ? (row.total || 0) : 0;
-        if (activeUsers > 0) {
-            // Assume each active user consumes roughly 5 MB per 10 seconds -> 0.005 GB
-            const additionalGb = activeUsers * 0.005;
-            await db.run(`UPDATE bandwidth_stats SET consumedGb = consumedGb + ? WHERE id = 'main'`, [additionalGb]);
+        const serverCounts = await db.all("SELECT serverId, count(*) as total FROM active_sessions GROUP BY serverId");
+        let totalActive = 0;
+        for (const s of serverCounts) {
+            const count = s.total || 0;
+            if (count > 0) {
+                const additionalGb = count * 0.005;
+                totalActive += count;
+                await db.run("UPDATE servers SET consumedGb = consumedGb + ? WHERE id = ?", [additionalGb, s.serverId]);
+            }
+        }
+        if (totalActive > 0) {
+            const totalAdditionalGb = totalActive * 0.005;
+            await db.run("UPDATE bandwidth_stats SET consumedGb = consumedGb + ? WHERE id = 'main'", [totalAdditionalGb]);
 
             // Log daily bandwidth
             const today = new Date().toISOString().split('T')[0];
-            await db.run(`INSERT OR IGNORE INTO daily_bandwidth (date, consumedGb) VALUES (?, 0)`, [today]);
-            await db.run(`UPDATE daily_bandwidth SET consumedGb = consumedGb + ? WHERE date = ?`, [additionalGb, today]);
+            await db.run("INSERT OR IGNORE INTO daily_bandwidth (date, consumedGb) VALUES (?, 0)", [today]);
+            await db.run("UPDATE daily_bandwidth SET consumedGb = consumedGb + ? WHERE date = ?", [totalAdditionalGb, today]);
         }
     } catch (e) {}
 }, 10000);
@@ -222,6 +229,7 @@ async function setupDatabase() {
     );
   `);
 
+  try { await db.run("ALTER TABLE servers ADD COLUMN consumedGb REAL DEFAULT 0"); } catch(e) {}
   // Ensure bandwidth row exists
   const bw = await db.get(`SELECT * FROM bandwidth_stats WHERE id = 'main'`);
   if (!bw) {
@@ -788,4 +796,4 @@ function getFlagEmoji(countryCode) {
 
 app.listen(port, () => {
   console.log(`Dashboard running at http://localhost:${port}`);
-});
+});app.get('/network', requireAuth, async (req, res) => { if (!db) return res.send('DB not configured'); const servers = await db.all('SELECT id, name, city, countryCode, flagEmoji, activeUsers, consumedGb, status FROM servers ORDER BY name ASC'); const globalBw = await db.get('SELECT consumedGb FROM bandwidth_stats WHERE id = ''main'' '); const totalGb = globalBw ? globalBw.consumedGb : 0; res.render('network', { servers, totalGb }); });
