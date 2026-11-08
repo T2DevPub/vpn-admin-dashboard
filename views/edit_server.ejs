@@ -104,26 +104,7 @@
     </div>
 
     <script>
-        function toggleFields() {
-            const isVpnGate = document.querySelector('input[name="serverType"]:checked').value === 'VPNGate';
-            const ipContainer = document.getElementById('ipFieldContainer');
-            const portContainer = document.getElementById('portFieldContainer');
-            const credContainer = document.getElementById('credentialsContainer');
-
-            if (isVpnGate) {
-                ipContainer.style.display = 'none';
-                portContainer.style.display = 'none';
-                document.getElementById('ipAddress').removeAttribute('required');
-            } else {
-                ipContainer.style.display = 'block';
-                portContainer.style.display = 'block';
-                credContainer.style.display = 'grid';
-                document.getElementById('ipAddress').setAttribute('required', 'required');
-            }
-        }
-
-        // Initialize fields on load
-        toggleFields();
+        
 
         // Full list of ISO 3166-1 alpha-2 country codes and names
         const countries = {
