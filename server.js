@@ -91,7 +91,9 @@ setInterval(async () => {
             await db.run("UPDATE bandwidth_stats SET consumedGb = consumedGb + ? WHERE id = 'main'", [totalAdditionalGb]);
 
             // Log daily bandwidth
-            const today = new Date().toISOString().split('T')[0];
+            // Generate today's date in IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
             await db.run("INSERT OR IGNORE INTO daily_bandwidth (date, consumedGb) VALUES (?, 0)", [today]);
             await db.run("UPDATE daily_bandwidth SET consumedGb = consumedGb + ? WHERE date = ?", [totalAdditionalGb, today]);
         }
@@ -622,7 +624,9 @@ app.post('/api/device/sync', express.json(), async (req, res) => {
     const { deviceId, bytes } = req.body;
     if (!deviceId || !bytes) return res.status(400).json({error: "Missing data"});
 
-    const today = new Date().toISOString().split('T')[0];
+    // Generate today's date in IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
     try {
         await db.run(`INSERT OR IGNORE INTO device_usage (deviceId, date, consumedBytes) VALUES (?, ?, 0)`, [deviceId, today]);
         await db.run(`UPDATE device_usage SET consumedBytes = consumedBytes + ? WHERE deviceId = ? AND date = ?`, [bytes, deviceId, today]);
@@ -638,7 +642,9 @@ app.get('/api/device/status', async (req, res) => {
     const deviceId = req.query.deviceId;
     if (!deviceId) return res.status(400).json({error: "Missing deviceId"});
 
-    const today = new Date().toISOString().split('T')[0];
+    // Generate today's date in IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
     try {
         const row = await db.get(`SELECT consumedBytes FROM device_usage WHERE deviceId = ? AND date = ?`, [deviceId, today]);
         const bytes = row ? row.consumedBytes : 0;
@@ -671,7 +677,9 @@ app.get('/devices', requireAuth, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const offset = (page - 1) * limit;
 
-    const today = new Date().toISOString().split('T')[0];
+    // Generate today's date in IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
     const selectedDate = req.query.date || today;
     const status = req.query.status || 'all';
 
