@@ -621,12 +621,14 @@ app.post('/settings', requireAuth, async (req, res) => {
 // Device Usage APIs for Android App
 app.post('/api/device/sync', express.json(), async (req, res) => {
     if(!db) return res.status(500).json({error: "Database starting"});
-    const { deviceId, bytes } = req.body;
+    const { deviceId, bytes, date } = req.body;
     if (!deviceId || !bytes) return res.status(400).json({error: "Missing data"});
 
-    // Generate today's date in IST (UTC+5:30)
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
+    let today = date;
+    if (!today) {
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
+    }
     try {
         await db.run(`INSERT OR IGNORE INTO device_usage (deviceId, date, consumedBytes) VALUES (?, ?, 0)`, [deviceId, today]);
         await db.run(`UPDATE device_usage SET consumedBytes = consumedBytes + ? WHERE deviceId = ? AND date = ?`, [bytes, deviceId, today]);
@@ -640,11 +642,14 @@ app.post('/api/device/sync', express.json(), async (req, res) => {
 app.get('/api/device/status', async (req, res) => {
     if(!db) return res.status(500).json({error: "Database starting"});
     const deviceId = req.query.deviceId;
+    const date = req.query.date;
     if (!deviceId) return res.status(400).json({error: "Missing deviceId"});
 
-    // Generate today's date in IST (UTC+5:30)
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
+    let today = date;
+    if (!today) {
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        today = new Date(Date.now() + istOffset).toISOString().split('T')[0];
+    }
     try {
         const row = await db.get(`SELECT consumedBytes FROM device_usage WHERE deviceId = ? AND date = ?`, [deviceId, today]);
         const bytes = row ? row.consumedBytes : 0;
