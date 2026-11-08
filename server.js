@@ -809,4 +809,4 @@ function getFlagEmoji(countryCode) {
 
 app.listen(port, () => {
   console.log(`Dashboard running at http://localhost:${port}`);
-});app.get('/network', requireAuth, async (req, res) => { if (!db) return res.send('DB not configured'); const servers = await db.all('SELECT id, name, city, countryCode, flagEmoji, activeUsers, consumedGb, status FROM servers ORDER BY name ASC'); const globalBw = await db.get('SELECT consumedGb FROM bandwidth_stats WHERE id = ''main'' '); const totalGb = globalBw ? globalBw.consumedGb : 0; res.render('network', { servers, totalGb }); });
+});app.get('/network', requireAuth, async (req, res) => { if (!db) return res.send('DB not configured'); const servers = await db.all('SELECT id, name, city, countryCode, flagEmoji, activeUsers, consumedGb, status FROM servers ORDER BY name ASC'); const globalBw = await db.get('SELECT consumedGb FROM bandwidth_stats WHERE id = 'main' '); const totalGb = globalBw ? globalBw.consumedGb : 0; res.render('network', { servers, totalGb }); });
