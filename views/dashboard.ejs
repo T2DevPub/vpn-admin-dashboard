@@ -159,6 +159,17 @@
                 } else {
                     const maxServerUsers = Math.max(...usedServers.map(s => s.activeUsers));
 
+                    // Add total row at top
+                    const totalUsersInUse = usedServers.reduce((sum, s) => sum + s.activeUsers, 0);
+                    serverList.innerHTML += `
+                        <li class="border-b pb-2 mb-2">
+                            <div class="flex justify-between items-center text-gray-500 font-bold">
+                                <span>Total Active Users</span>
+                                <span>${totalUsersInUse.toLocaleString()}</span>
+                            </div>
+                        </li>
+                    `;
+
                     usedServers.forEach(server => {
                         const pct = Math.round((server.activeUsers / maxServerUsers) * 100);
                         const flagUrl = server.countryCode ? `https://flagcdn.com/24x18/${server.countryCode.toLowerCase()}.png` : '';
@@ -189,6 +200,17 @@
                 } else {
                     // Maximum for the progress bar calculation
                     const maxUsers = Math.max(...data.countryStats.map(s => s.activeUsers));
+
+                    // Add total row at top
+                    const totalUsersDemographics = data.countryStats.reduce((sum, s) => sum + s.activeUsers, 0);
+                    list.innerHTML += `
+                        <li class="border-b pb-2 mb-2">
+                            <div class="flex justify-between items-center text-gray-500 font-bold">
+                                <span>Total Users</span>
+                                <span>${totalUsersDemographics.toLocaleString()}</span>
+                            </div>
+                        </li>
+                    `;
 
                     data.countryStats.forEach(stat => {
                         const pct = Math.round((stat.activeUsers / maxUsers) * 100);
