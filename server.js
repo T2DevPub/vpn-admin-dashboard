@@ -809,4 +809,25 @@ function getFlagEmoji(countryCode) {
 
 app.listen(port, () => {
   console.log(`Dashboard running at http://localhost:${port}`);
-});app.get('/network', requireAuth, async (req, res) => { if (!db) return res.send('DB not configured'); const servers = await db.all('SELECT id, name, city, countryCode, flagEmoji, activeUsers, consumedGb, status FROM servers ORDER BY name ASC'); const globalBw = await db.get("SELECT consumedGb FROM bandwidth_stats WHERE id = 'main' "); const totalGb = globalBw ? globalBw.consumedGb : 0; res.render('network', { servers, totalGb }); });
+});
+
+app.get('/network', requireAuth, async (req, res) => {
+    if (!db) return res.send('DB not configured');
+
+    // Prune stale sessions first
+    const fiveMinsAgo = Date.now() - 5 * 60000;
+    await db.run('DELETE FROM active_sessions WHERE lastUpdate < ?', [fiveMinsAgo]);
+
+    const servers = await db.all(`
+        SELECT s.id, s.name, s.city, s.countryCode, s.flagEmoji, s.consumedGb, s.status, count(a.sessionId) as activeUsers
+        FROM servers s
+        LEFT JOIN active_sessions a ON s.id = a.serverId
+        GROUP BY s.id
+        ORDER BY s.name ASC
+    `);
+
+    const globalBw = await db.get("SELECT consumedGb FROM bandwidth_stats WHERE id = 'main'");
+    const totalGb = globalBw ? globalBw.consumedGb : 0;
+
+    res.render('network', { servers, totalGb });
+});

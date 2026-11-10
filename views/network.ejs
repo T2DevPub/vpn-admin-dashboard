@@ -4,6 +4,9 @@
     <title>Network Traffic | VPN Admin</title>
     <link rel="icon" type="image/png" href="/images/t2vpn_icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet" type="text/css">
+    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest" type="text/javascript"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <nav class="bg-[#424A5C] text-white p-4 flex justify-between items-center shadow">
@@ -25,70 +28,147 @@
     <div class="p-8 max-w-7xl mx-auto">
         <div class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800">Network Traffic & Bandwidth</h1>
+            <button onclick="window.location.reload()" class="bg-[#424A5C] text-white px-4 py-2 rounded shadow hover:bg-gray-700 transition">
+                Refresh Data
+            </button>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-8 text-center border-t-4 border-indigo-500 mb-8">
-            <h2 class="text-xl text-gray-500 font-semibold mb-2">Total Global Bandwidth Consumed</h2>
-            <p class="text-5xl font-bold text-indigo-600"><%= totalGb.toFixed(3) %> GB</p>
-            <p class="text-sm text-gray-400 mt-2">All time bandwidth across all VPN nodes</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Global Metric -->
+            <div class="bg-white rounded-lg shadow p-8 text-center border-l-4 border-indigo-500 flex flex-col justify-center">
+                <h2 class="text-xl text-gray-500 font-semibold mb-2">Total Global Bandwidth</h2>
+                <p class="text-5xl font-bold text-indigo-600"><%= totalGb.toFixed(3) %> GB</p>
+                <p class="text-sm text-gray-400 mt-2">All time bandwidth across all VPN nodes</p>
+            </div>
+
+            <!-- Chart -->
+            <div class="md:col-span-2 bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg text-gray-600 font-bold mb-4">Bandwidth by Server (GB)</h2>
+                <div class="relative h-64 w-full">
+                    <canvas id="bandwidthChart"></canvas>
+                </div>
+            </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+        <div class="bg-white rounded-lg shadow p-6">
+            <table id="networkTable" class="min-w-full divide-y divide-gray-200">
+                <thead>
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Server Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Region</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active Users</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Bandwidth (GB)</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th>Server</th>
+                        <th>Location</th>
+                        <th>Active Users</th>
+                        <th>Total Bandwidth (GB)</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <% if (servers.length === 0) { %>
-                        <tr>
-                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">No servers configured.</td>
-                        </tr>
-                    <% } else { %>
-                        <% servers.forEach(function(server) { %>
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="font-bold text-gray-800"><%= server.name %></div>
-                                <div class="text-xs text-gray-500"><%= server.id %></div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <span class="text-2xl mr-2"><%= server.flagEmoji %></span>
-                                    <span class="text-sm text-gray-900"><%= server.city %>, <%= server.countryCode %></span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <% if (server.activeUsers > 0) { %>
-                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                        <%= server.activeUsers %> online
-                                    </span>
-                                <% } else { %>
-                                    <span class="text-sm text-gray-500">0</span>
-                                <% } %>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
-                                <%= (server.consumedGb || 0).toFixed(3) %> GB
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <% if (server.status === 'Online') { %>
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Online</span>
-                                <% } else if (server.status === 'Offline' || server.status === 'Down') { %>
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"><%= server.status %></span>
-                                <% } else { %>
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"><%= server.status %></span>
-                                <% } %>
-                            </td>
-                        </tr>
-                        <% }); %>
-                    <% } %>
+                <tbody>
+                    <% servers.forEach(function(server) { %>
+                    <tr>
+                        <td>
+                            <div class="font-bold text-gray-800"><%= server.name %></div>
+                            <div class="text-xs text-gray-500"><%= server.id %></div>
+                        </td>
+                        <td>
+                            <div class="flex items-center">
+                                <span class="text-2xl mr-2"><%- server.flagEmoji %></span>
+                                <span class="text-sm text-gray-900"><%= server.city %>, <%= server.countryCode %></span>
+                            </div>
+                        </td>
+                        <td>
+                            <% if (server.activeUsers > 0) { %>
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-blue-100 text-blue-800">
+                                    <%= server.activeUsers %>
+                                </span>
+                            <% } else { %>
+                                <span class="text-sm text-gray-500">0</span>
+                            <% } %>
+                        </td>
+                        <td class="text-sm text-gray-900 font-bold">
+                            <%= (server.consumedGb || 0).toFixed(3) %>
+                        </td>
+                        <td>
+                            <% if (server.status === 'Online') { %>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Online</span>
+                            <% } else if (server.status === 'Offline' || server.status === 'Down') { %>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"><%= server.status %></span>
+                            <% } else { %>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"><%= server.status %></span>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }); %>
                 </tbody>
             </table>
         </div>
     </div>
+
+    <script>
+        // Initialize DataTables
+        const dataTable = new simpleDatatables.DataTable("#networkTable", {
+            searchable: true,
+            fixedHeight: true,
+            perPage: 15
+        });
+
+        // Initialize Chart.js
+        const rawServerData = <%- JSON.stringify(servers) %>;
+
+        // Sort servers by consumed bandwidth (highest first)
+        const sortedServers = rawServerData.sort((a, b) => (b.consumedGb || 0) - (a.consumedGb || 0)).slice(0, 10); // Top 10
+
+        const ctx = document.getElementById('bandwidthChart').getContext('2d');
+        const bandwidthChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedServers.map(s => s.name),
+                datasets: [{
+                    label: 'Bandwidth Consumed (GB)',
+                    data: sortedServers.map(s => (s.consumedGb || 0).toFixed(3)),
+                    backgroundColor: 'rgba(79, 70, 229, 0.7)', // Indigo-600
+                    borderColor: 'rgba(79, 70, 229, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+    <style>
+        /* Small styling overrides to make Simple-DataTables look great with Tailwind */
+        .dataTable-table > tbody > tr > td,
+        .dataTable-table > tbody > tr > th,
+        .dataTable-table > tfoot > tr > td,
+        .dataTable-table > tfoot > tr > th,
+        .dataTable-table > thead > tr > td,
+        .dataTable-table > thead > tr > th {
+            vertical-align: middle;
+            padding: 1rem 1.5rem;
+        }
+        .dataTable-wrapper.no-footer .dataTable-container {
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .dataTable-table > thead > tr > th {
+            border-bottom: 2px solid #e5e7eb;
+            background-color: #f9fafb;
+            color: #6b7280;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+    </style>
 </body>
 </html>
