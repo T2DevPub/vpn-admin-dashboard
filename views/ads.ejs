@@ -65,8 +65,12 @@
             <div id="admobFields" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div class="md:col-span-2"><h3 class="text-md font-semibold text-gray-700">Google AdMob / AdX IDs</h3></div>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-1">Banner Ad Unit ID</label>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Homepage Banner Ad Unit ID</label>
                     <input type="text" name="bannerAdUnitId" value="<%= config.bannerAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Usage Stats Banner Ad Unit ID</label>
+                    <input type="text" name="usageStatsBannerAdUnitId" value="<%= config.usageStatsBannerAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
                 </div>
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-1">App Open Ad Unit ID</label>
@@ -90,8 +94,12 @@
             <div id="metaFields" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 hidden">
                 <div class="md:col-span-2"><h3 class="text-md font-semibold text-gray-700">Meta Audience Network IDs</h3></div>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-1">Banner Ad Unit ID</label>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Homepage Banner Ad Unit ID</label>
                     <input type="text" name="metaBannerAdUnitId" value="<%= config.metaBannerAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="YOUR_PLACEMENT_ID">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Usage Stats Banner Ad Unit ID</label>
+                    <input type="text" name="metaUsageStatsBannerAdUnitId" value="<%= config.metaUsageStatsBannerAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="YOUR_PLACEMENT_ID">
                 </div>
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-1">App Open Ad Unit ID</label>

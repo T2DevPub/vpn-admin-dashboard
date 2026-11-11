@@ -145,7 +145,8 @@ async function upgradeSchema() {
       const configInfo = await db.all(`PRAGMA table_info(app_config)`);
       const columnsToAdd = [
           'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId', 'nativeAdUnitId',
-          'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId', 'metaNativeAdUnitId'
+          'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId', 'metaNativeAdUnitId',
+          'usageStatsBannerAdUnitId', 'metaUsageStatsBannerAdUnitId'
       ];
 
       for (const col of columnsToAdd) {
@@ -256,6 +257,8 @@ async function setupDatabase() {
       metaInterstitialAdUnitId TEXT,
       metaRewardedAdUnitId TEXT,
       metaNativeAdUnitId TEXT,
+      usageStatsBannerAdUnitId TEXT,
+      metaUsageStatsBannerAdUnitId TEXT,
       maintenanceMode INTEGER DEFAULT 0,
       maintenanceEndTime TEXT
     );
@@ -411,7 +414,9 @@ app.get('/api/ads', async (req, res) => {
       metaAppOpenAdUnitId: config.metaAppOpenAdUnitId || "",
       metaInterstitialAdUnitId: config.metaInterstitialAdUnitId || "",
       metaRewardedAdUnitId: config.metaRewardedAdUnitId || "",
-      metaNativeAdUnitId: config.metaNativeAdUnitId || ""
+      metaNativeAdUnitId: config.metaNativeAdUnitId || "",
+      usageStatsBannerAdUnitId: config.usageStatsBannerAdUnitId || "",
+      metaUsageStatsBannerAdUnitId: config.metaUsageStatsBannerAdUnitId || ""
   });
 });
 
@@ -772,7 +777,9 @@ app.get('/ads', requireAuth, async (req, res) => {
       metaAppOpenAdUnitId: doc.metaAppOpenAdUnitId || "",
       metaInterstitialAdUnitId: doc.metaInterstitialAdUnitId || "",
       metaRewardedAdUnitId: doc.metaRewardedAdUnitId || "",
-      metaNativeAdUnitId: doc.metaNativeAdUnitId || ""
+      metaNativeAdUnitId: doc.metaNativeAdUnitId || "",
+      usageStatsBannerAdUnitId: doc.usageStatsBannerAdUnitId || "",
+      metaUsageStatsBannerAdUnitId: doc.metaUsageStatsBannerAdUnitId || ""
   };
 
   res.render('ads', { config });
@@ -793,15 +800,17 @@ app.post('/ads', requireAuth, async (req, res) => {
   const interstitialId = data.interstitialAdUnitId || "";
   const rewardedId = data.rewardedAdUnitId || "";
   const nativeId = data.nativeAdUnitId || "";
+  const usageStatsBannerId = data.usageStatsBannerAdUnitId || "";
 
   const metaBannerId = data.metaBannerAdUnitId || "";
   const metaAppOpenId = data.metaAppOpenAdUnitId || "";
   const metaInterstitialId = data.metaInterstitialAdUnitId || "";
   const metaRewardedId = data.metaRewardedAdUnitId || "";
   const metaNativeId = data.metaNativeAdUnitId || "";
+  const metaUsageStatsBannerId = data.metaUsageStatsBannerAdUnitId || "";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId]);
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId]);
 
   res.redirect('/ads?saved=true');
 });
