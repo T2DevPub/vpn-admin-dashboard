@@ -80,6 +80,10 @@
                     <label class="block text-gray-700 text-sm font-bold mb-1">Rewarded Ad Unit ID</label>
                     <input type="text" name="rewardedAdUnitId" value="<%= config.rewardedAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
                 </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Native Ad Unit ID</label>
+                    <input type="text" name="nativeAdUnitId" value="<%= config.nativeAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="ca-app-pub-...">
+                </div>
             </div>
 
             <!-- Meta Fields -->
@@ -101,10 +105,18 @@
                     <label class="block text-gray-700 text-sm font-bold mb-1">Rewarded Ad Unit ID</label>
                     <input type="text" name="metaRewardedAdUnitId" value="<%= config.metaRewardedAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="YOUR_PLACEMENT_ID">
                 </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Native Ad Unit ID</label>
+                    <input type="text" name="metaNativeAdUnitId" value="<%= config.metaNativeAdUnitId || '' %>" class="w-full border rounded p-2" placeholder="YOUR_PLACEMENT_ID">
+                </div>
             </div>
 
-            <div class="mt-8">
-                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-bold w-full">Save Ad Settings</button>
+            <div class="mt-8 flex items-center justify-between">
+                <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-bold shadow-md transition-colors w-full md:w-auto">Save Ad Settings</button>
+                <div id="saveNotification" class="text-green-600 font-semibold flex items-center opacity-0 transition-opacity duration-300">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Settings Saved Successfully!
+                </div>
             </div>
         </form>
     </div>
@@ -126,6 +138,23 @@
 
         // Run once on load to set initial state
         toggleNetworkFields();
+
+        // Check for save success parameter in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('saved') === 'true') {
+            const notif = document.getElementById('saveNotification');
+            notif.classList.remove('opacity-0');
+            notif.classList.add('opacity-100');
+
+            // Clean up URL without reloading the page
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Fade out after 3 seconds
+            setTimeout(() => {
+                notif.classList.remove('opacity-100');
+                notif.classList.add('opacity-0');
+            }, 3000);
+        }
     </script>
 </body>
 </html>

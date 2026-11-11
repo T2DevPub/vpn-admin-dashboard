@@ -144,8 +144,8 @@ async function upgradeSchema() {
 
       const configInfo = await db.all(`PRAGMA table_info(app_config)`);
       const columnsToAdd = [
-          'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId',
-          'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId'
+          'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId', 'nativeAdUnitId',
+          'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId', 'metaNativeAdUnitId'
       ];
 
       for (const col of columnsToAdd) {
@@ -250,10 +250,12 @@ async function setupDatabase() {
       appOpenAdUnitId TEXT,
       interstitialAdUnitId TEXT,
       rewardedAdUnitId TEXT,
+      nativeAdUnitId TEXT,
       metaBannerAdUnitId TEXT,
       metaAppOpenAdUnitId TEXT,
       metaInterstitialAdUnitId TEXT,
       metaRewardedAdUnitId TEXT,
+      metaNativeAdUnitId TEXT,
       maintenanceMode INTEGER DEFAULT 0,
       maintenanceEndTime TEXT
     );
@@ -275,7 +277,7 @@ async function setupDatabase() {
   // Insert default config if none exists
   const configExists = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
   if (!configExists) {
-      await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId, metaBannerAdUnitId, metaAppOpenAdUnitId, metaInterstitialAdUnitId, metaRewardedAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '', '', '', '', '')`);
+      await db.run(`INSERT INTO app_config (id, bannersEnabled, interstitialOnConnect, interstitialOnDisconnect, appOpenAdsEnabled, adNetworkProvider, bannerAdUnitId, appOpenAdUnitId, interstitialAdUnitId, rewardedAdUnitId, nativeAdUnitId, metaBannerAdUnitId, metaAppOpenAdUnitId, metaInterstitialAdUnitId, metaRewardedAdUnitId, metaNativeAdUnitId) VALUES ('ads', 1, 1, 1, 1, 'AdMob', '', '', '', '', '', '', '', '', '', '')`);
   }
 }
 setupDatabase();
@@ -404,10 +406,12 @@ app.get('/api/ads', async (req, res) => {
       appOpenAdUnitId: config.appOpenAdUnitId || "",
       interstitialAdUnitId: config.interstitialAdUnitId || "",
       rewardedAdUnitId: config.rewardedAdUnitId || "",
+      nativeAdUnitId: config.nativeAdUnitId || "",
       metaBannerAdUnitId: config.metaBannerAdUnitId || "",
       metaAppOpenAdUnitId: config.metaAppOpenAdUnitId || "",
       metaInterstitialAdUnitId: config.metaInterstitialAdUnitId || "",
-      metaRewardedAdUnitId: config.metaRewardedAdUnitId || ""
+      metaRewardedAdUnitId: config.metaRewardedAdUnitId || "",
+      metaNativeAdUnitId: config.metaNativeAdUnitId || ""
   });
 });
 
@@ -763,10 +767,12 @@ app.get('/ads', requireAuth, async (req, res) => {
       appOpenAdUnitId: doc.appOpenAdUnitId || "",
       interstitialAdUnitId: doc.interstitialAdUnitId || "",
       rewardedAdUnitId: doc.rewardedAdUnitId || "",
+      nativeAdUnitId: doc.nativeAdUnitId || "",
       metaBannerAdUnitId: doc.metaBannerAdUnitId || "",
       metaAppOpenAdUnitId: doc.metaAppOpenAdUnitId || "",
       metaInterstitialAdUnitId: doc.metaInterstitialAdUnitId || "",
-      metaRewardedAdUnitId: doc.metaRewardedAdUnitId || ""
+      metaRewardedAdUnitId: doc.metaRewardedAdUnitId || "",
+      metaNativeAdUnitId: doc.metaNativeAdUnitId || ""
   };
 
   res.render('ads', { config });
@@ -786,16 +792,18 @@ app.post('/ads', requireAuth, async (req, res) => {
   const appOpenId = data.appOpenAdUnitId || "";
   const interstitialId = data.interstitialAdUnitId || "";
   const rewardedId = data.rewardedAdUnitId || "";
+  const nativeId = data.nativeAdUnitId || "";
 
   const metaBannerId = data.metaBannerAdUnitId || "";
   const metaAppOpenId = data.metaAppOpenAdUnitId || "";
   const metaInterstitialId = data.metaInterstitialAdUnitId || "";
   const metaRewardedId = data.metaRewardedAdUnitId || "";
+  const metaNativeId = data.metaNativeAdUnitId || "";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId]);
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId]);
 
-  res.redirect('/ads');
+  res.redirect('/ads?saved=true');
 });
 
 function getFlagEmoji(countryCode) {
