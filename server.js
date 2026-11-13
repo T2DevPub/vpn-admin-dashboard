@@ -260,7 +260,8 @@ async function setupDatabase() {
       usageStatsBannerAdUnitId TEXT,
       metaUsageStatsBannerAdUnitId TEXT,
       maintenanceMode INTEGER DEFAULT 0,
-      maintenanceEndTime TEXT
+      maintenanceEndTime TEXT,
+      enablePremiumServerRewards INTEGER DEFAULT 1
     );
   `);
 
@@ -268,6 +269,12 @@ async function setupDatabase() {
   try {
       const columns = await db.all("PRAGMA table_info(app_config)");
       if (!columns.some(col => col.name === 'maintenanceMode')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN maintenanceMode INTEGER DEFAULT 0");
+          await db.run("ALTER TABLE app_config ADD COLUMN maintenanceEndTime TEXT");
+      }
+      if (!columns.some(col => col.name === 'enablePremiumServerRewards')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN enablePremiumServerRewards INTEGER DEFAULT 1");
+      }
           await db.exec(`ALTER TABLE app_config ADD COLUMN maintenanceMode INTEGER DEFAULT 0`);
           await db.exec(`ALTER TABLE app_config ADD COLUMN maintenanceEndTime TEXT`);
       }
@@ -416,7 +423,8 @@ app.get('/api/ads', async (req, res) => {
       metaRewardedAdUnitId: config.metaRewardedAdUnitId || "",
       metaNativeAdUnitId: config.metaNativeAdUnitId || "",
       usageStatsBannerAdUnitId: config.usageStatsBannerAdUnitId || "",
-      metaUsageStatsBannerAdUnitId: config.metaUsageStatsBannerAdUnitId || ""
+      metaUsageStatsBannerAdUnitId: config.metaUsageStatsBannerAdUnitId || "",
+      enablePremiumServerRewards: config.enablePremiumServerRewards !== 0
   });
 });
 
@@ -611,19 +619,20 @@ app.get('/settings', requireAuth, async (req, res) => {
   const doc = await db.get(`SELECT * FROM app_config WHERE id = 'ads'`);
   const settings = {
       maintenanceMode: doc.maintenanceMode === 1,
-      maintenanceEndTime: doc.maintenanceEndTime || ''
+      maintenanceEndTime: doc.maintenanceEndTime || '',
+      enablePremiumServerRewards: doc.enablePremiumServerRewards !== 0
   };
   res.render('settings', { settings });
 });
 
 app.post('/settings', requireAuth, async (req, res) => {
     if (!db) return res.status(500).send("DB error");
-    const { maintenanceMode, maintenanceEndTime } = req.body;
+    const { maintenanceMode, maintenanceEndTime, enablePremiumServerRewards } = req.body;
     await db.run(`
         UPDATE app_config
-        SET maintenanceMode = ?, maintenanceEndTime = ?
+        SET maintenanceMode = ?, maintenanceEndTime = ?, enablePremiumServerRewards = ?
         WHERE id = 'ads'
-    `, [maintenanceMode === 'on' ? 1 : 0, maintenanceEndTime || null]);
+    `, [maintenanceMode === 'on' ? 1 : 0, maintenanceEndTime || null, enablePremiumServerRewards === 'on' ? 1 : 0]);
     res.redirect('/settings');
 });
 

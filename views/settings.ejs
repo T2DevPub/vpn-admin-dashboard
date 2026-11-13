@@ -45,6 +45,18 @@
                 </div>
             </div>
 
+            <h2 class="text-lg font-bold mb-4 border-b pb-2 mt-8">Premium Server Rewards</h2>
+
+            <div class="space-y-4 mb-6">
+                <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50 cursor-pointer">
+                    <div>
+                        <span class="text-gray-700 font-bold block">Unlock Premium Servers with Rewarded Ads</span>
+                        <span class="text-gray-500 text-sm">Allows free users to unlock premium servers for 30 minutes by watching an ad.</span>
+                    </div>
+                    <input type="checkbox" name="enablePremiumServerRewards" class="form-checkbox h-5 w-5 text-blue-600" <%= settings.enablePremiumServerRewards ? 'checked' : '' %>>
+                </label>
+            </div>
+
             <div class="mt-6 flex justify-end">
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 shadow font-bold transition">Save Settings</button>
             </div>
