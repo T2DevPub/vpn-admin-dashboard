@@ -275,9 +275,6 @@ async function setupDatabase() {
       if (!columns.some(col => col.name === 'enablePremiumServerRewards')) {
           await db.run("ALTER TABLE app_config ADD COLUMN enablePremiumServerRewards INTEGER DEFAULT 1");
       }
-          await db.exec(`ALTER TABLE app_config ADD COLUMN maintenanceMode INTEGER DEFAULT 0`);
-          await db.exec(`ALTER TABLE app_config ADD COLUMN maintenanceEndTime TEXT`);
-      }
   } catch(e) {
       console.error("Error migrating app_config table:", e);
   }
