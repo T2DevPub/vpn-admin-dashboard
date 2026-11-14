@@ -584,7 +584,7 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
     vpnPassword: data.vpnPassword || ""
   };
 
-  const id = data.id || (data.countryCode.toLowerCase() + "_" + data.city.toLowerCase().replace(/\\s+/g, ""));
+  const id = data.id || (data.countryCode.toLowerCase() + "_" + data.city.toLowerCase().replace(/\s+/g, ""));
 
   const existing = await db.get(`SELECT id FROM servers WHERE id = ?`, id);
 
