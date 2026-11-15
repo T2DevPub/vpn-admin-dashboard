@@ -146,7 +146,8 @@ async function upgradeSchema() {
       const columnsToAdd = [
           'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId', 'nativeAdUnitId',
           'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId', 'metaNativeAdUnitId',
-          'usageStatsBannerAdUnitId', 'metaUsageStatsBannerAdUnitId', 'interstitialOnFreeServerSelection'
+          'usageStatsBannerAdUnitId', 'metaUsageStatsBannerAdUnitId', 'interstitialOnFreeServerSelection',
+          'freeServerInterstitialAdUnitId', 'metaFreeServerInterstitialAdUnitId'
       ];
 
       for (const col of columnsToAdd) {
@@ -262,7 +263,9 @@ async function setupDatabase() {
       maintenanceMode INTEGER DEFAULT 0,
       maintenanceEndTime TEXT,
       enablePremiumServerRewards INTEGER DEFAULT 1,
-      interstitialOnFreeServerSelection INTEGER DEFAULT 0
+      interstitialOnFreeServerSelection INTEGER DEFAULT 0,
+      freeServerInterstitialAdUnitId TEXT,
+      metaFreeServerInterstitialAdUnitId TEXT
     );
   `);
 
@@ -278,6 +281,10 @@ async function setupDatabase() {
       }
       if (!columns.some(col => col.name === 'interstitialOnFreeServerSelection')) {
           await db.run("ALTER TABLE app_config ADD COLUMN interstitialOnFreeServerSelection INTEGER DEFAULT 0");
+      }
+      if (!columns.some(col => col.name === 'freeServerInterstitialAdUnitId')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN freeServerInterstitialAdUnitId TEXT");
+          await db.run("ALTER TABLE app_config ADD COLUMN metaFreeServerInterstitialAdUnitId TEXT");
       }
   } catch(e) {
       console.error("Error migrating app_config table:", e);
@@ -426,6 +433,8 @@ app.get('/api/ads', async (req, res) => {
       metaNativeAdUnitId: config.metaNativeAdUnitId || "",
       usageStatsBannerAdUnitId: config.usageStatsBannerAdUnitId || "",
       metaUsageStatsBannerAdUnitId: config.metaUsageStatsBannerAdUnitId || "",
+      freeServerInterstitialAdUnitId: config.freeServerInterstitialAdUnitId || "",
+      metaFreeServerInterstitialAdUnitId: config.metaFreeServerInterstitialAdUnitId || "",
       enablePremiumServerRewards: config.enablePremiumServerRewards !== 0
   });
 });
@@ -656,6 +665,10 @@ app.post('/api/device/sync', express.json(), async (req, res) => {
         if (!columns.some(col => col.name === 'interstitialOnFreeServerSelection')) {
           await db.run("ALTER TABLE app_config ADD COLUMN interstitialOnFreeServerSelection INTEGER DEFAULT 0");
       }
+      if (!columns.some(col => col.name === 'freeServerInterstitialAdUnitId')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN freeServerInterstitialAdUnitId TEXT");
+          await db.run("ALTER TABLE app_config ADD COLUMN metaFreeServerInterstitialAdUnitId TEXT");
+      }
   } catch(e) {
         console.error("Device sync error:", e);
         res.status(500).json({error: "Server error"});
@@ -684,6 +697,10 @@ app.get('/api/device/status', async (req, res) => {
         });
         if (!columns.some(col => col.name === 'interstitialOnFreeServerSelection')) {
           await db.run("ALTER TABLE app_config ADD COLUMN interstitialOnFreeServerSelection INTEGER DEFAULT 0");
+      }
+      if (!columns.some(col => col.name === 'freeServerInterstitialAdUnitId')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN freeServerInterstitialAdUnitId TEXT");
+          await db.run("ALTER TABLE app_config ADD COLUMN metaFreeServerInterstitialAdUnitId TEXT");
       }
   } catch(e) {
         res.status(500).json({error: "Server error"});
@@ -797,7 +814,9 @@ app.get('/ads', requireAuth, async (req, res) => {
       metaRewardedAdUnitId: doc.metaRewardedAdUnitId || "",
       metaNativeAdUnitId: doc.metaNativeAdUnitId || "",
       usageStatsBannerAdUnitId: doc.usageStatsBannerAdUnitId || "",
-      metaUsageStatsBannerAdUnitId: doc.metaUsageStatsBannerAdUnitId || ""
+      metaUsageStatsBannerAdUnitId: doc.metaUsageStatsBannerAdUnitId || "",
+      freeServerInterstitialAdUnitId: doc.freeServerInterstitialAdUnitId || "",
+      metaFreeServerInterstitialAdUnitId: doc.metaFreeServerInterstitialAdUnitId || ""
   };
 
   res.render('ads', { config });
@@ -820,6 +839,7 @@ app.post('/ads', requireAuth, async (req, res) => {
   const rewardedId = data.rewardedAdUnitId || "";
   const nativeId = data.nativeAdUnitId || "";
   const usageStatsBannerId = data.usageStatsBannerAdUnitId || "";
+  const freeServerInterstitialId = data.freeServerInterstitialAdUnitId || "";
 
   const metaBannerId = data.metaBannerAdUnitId || "";
   const metaAppOpenId = data.metaAppOpenAdUnitId || "";
@@ -827,9 +847,10 @@ app.post('/ads', requireAuth, async (req, res) => {
   const metaRewardedId = data.metaRewardedAdUnitId || "";
   const metaNativeId = data.metaNativeAdUnitId || "";
   const metaUsageStatsBannerId = data.metaUsageStatsBannerAdUnitId || "";
+  const metaFreeServerInterstitialId = data.metaFreeServerInterstitialAdUnitId || "";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, interstitialOnFreeServerSelection=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, iFreeServer, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId]);
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, interstitialOnFreeServerSelection=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=?, freeServerInterstitialAdUnitId=?, metaFreeServerInterstitialAdUnitId=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, iFreeServer, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId, freeServerInterstitialId, metaFreeServerInterstitialId]);
 
   res.redirect('/ads?saved=true');
 });
