@@ -146,7 +146,7 @@ async function upgradeSchema() {
       const columnsToAdd = [
           'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId', 'nativeAdUnitId',
           'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId', 'metaNativeAdUnitId',
-          'usageStatsBannerAdUnitId', 'metaUsageStatsBannerAdUnitId'
+          'usageStatsBannerAdUnitId', 'metaUsageStatsBannerAdUnitId', 'interstitialOnFreeServerSelection'
       ];
 
       for (const col of columnsToAdd) {
@@ -261,7 +261,8 @@ async function setupDatabase() {
       metaUsageStatsBannerAdUnitId TEXT,
       maintenanceMode INTEGER DEFAULT 0,
       maintenanceEndTime TEXT,
-      enablePremiumServerRewards INTEGER DEFAULT 1
+      enablePremiumServerRewards INTEGER DEFAULT 1,
+      interstitialOnFreeServerSelection INTEGER DEFAULT 0
     );
   `);
 
@@ -274,6 +275,9 @@ async function setupDatabase() {
       }
       if (!columns.some(col => col.name === 'enablePremiumServerRewards')) {
           await db.run("ALTER TABLE app_config ADD COLUMN enablePremiumServerRewards INTEGER DEFAULT 1");
+      }
+      if (!columns.some(col => col.name === 'interstitialOnFreeServerSelection')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN interstitialOnFreeServerSelection INTEGER DEFAULT 0");
       }
   } catch(e) {
       console.error("Error migrating app_config table:", e);
@@ -407,6 +411,7 @@ app.get('/api/ads', async (req, res) => {
       bannersEnabled: config.bannersEnabled === 1,
       interstitialOnConnect: config.interstitialOnConnect === 1,
       interstitialOnDisconnect: config.interstitialOnDisconnect === 1,
+      interstitialOnFreeServerSelection: config.interstitialOnFreeServerSelection === 1,
       appOpenAdsEnabled: config.appOpenAdsEnabled === 1,
       adNetworkProvider: config.adNetworkProvider,
       bannerAdUnitId: config.bannerAdUnitId || "",
@@ -648,7 +653,10 @@ app.post('/api/device/sync', express.json(), async (req, res) => {
         await db.run(`INSERT OR IGNORE INTO device_usage (deviceId, date, consumedBytes) VALUES (?, ?, 0)`, [deviceId, today]);
         await db.run(`UPDATE device_usage SET consumedBytes = consumedBytes + ? WHERE deviceId = ? AND date = ?`, [bytes, deviceId, today]);
         res.json({ success: true });
-    } catch(e) {
+        if (!columns.some(col => col.name === 'interstitialOnFreeServerSelection')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN interstitialOnFreeServerSelection INTEGER DEFAULT 0");
+      }
+  } catch(e) {
         console.error("Device sync error:", e);
         res.status(500).json({error: "Server error"});
     }
@@ -674,7 +682,10 @@ app.get('/api/device/status', async (req, res) => {
             exceeded: bytes > limitBytes,
             consumedBytes: bytes
         });
-    } catch(e) {
+        if (!columns.some(col => col.name === 'interstitialOnFreeServerSelection')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN interstitialOnFreeServerSelection INTEGER DEFAULT 0");
+      }
+  } catch(e) {
         res.status(500).json({error: "Server error"});
     }
 });
@@ -772,6 +783,7 @@ app.get('/ads', requireAuth, async (req, res) => {
       bannersEnabled: doc.bannersEnabled === 1,
       interstitialOnConnect: doc.interstitialOnConnect === 1,
       interstitialOnDisconnect: doc.interstitialOnDisconnect === 1,
+      interstitialOnFreeServerSelection: doc.interstitialOnFreeServerSelection === 1,
       appOpenAdsEnabled: doc.appOpenAdsEnabled === 1,
       adNetworkProvider: doc.adNetworkProvider,
       bannerAdUnitId: doc.bannerAdUnitId || "",
@@ -798,6 +810,7 @@ app.post('/ads', requireAuth, async (req, res) => {
   const banners = data.bannersEnabled === 'on' ? 1 : 0;
   const iConnect = data.interstitialOnConnect === 'on' ? 1 : 0;
   const iDisconnect = data.interstitialOnDisconnect === 'on' ? 1 : 0;
+  const iFreeServer = data.interstitialOnFreeServerSelection === 'on' ? 1 : 0;
   const appOpen = data.appOpenAdsEnabled === 'on' ? 1 : 0;
   const provider = data.adNetworkProvider || "AdMob";
 
@@ -815,8 +828,8 @@ app.post('/ads', requireAuth, async (req, res) => {
   const metaNativeId = data.metaNativeAdUnitId || "";
   const metaUsageStatsBannerId = data.metaUsageStatsBannerAdUnitId || "";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId]);
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, interstitialOnFreeServerSelection=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, iFreeServer, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId]);
 
   res.redirect('/ads?saved=true');
 });

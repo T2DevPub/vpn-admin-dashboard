@@ -46,6 +46,11 @@
                 </label>
 
                 <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <span class="text-gray-700 font-medium">Interstitial on Free Server Selection</span>
+                    <input type="checkbox" name="interstitialOnFreeServerSelection" class="form-checkbox h-5 w-5 text-blue-600" <%= config.interstitialOnFreeServerSelection ? 'checked' : '' %>>
+                </label>
+
+                <label class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
                     <span class="text-gray-700 font-medium">Interstitial on Disconnect</span>
                     <input type="checkbox" name="interstitialOnDisconnect" class="form-checkbox h-5 w-5 text-blue-600" <%= config.interstitialOnDisconnect ? 'checked' : '' %>>
                 </label>
