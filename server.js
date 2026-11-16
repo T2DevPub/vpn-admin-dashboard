@@ -147,7 +147,10 @@ async function upgradeSchema() {
           'bannerAdUnitId', 'appOpenAdUnitId', 'interstitialAdUnitId', 'rewardedAdUnitId', 'nativeAdUnitId',
           'metaBannerAdUnitId', 'metaAppOpenAdUnitId', 'metaInterstitialAdUnitId', 'metaRewardedAdUnitId', 'metaNativeAdUnitId',
           'usageStatsBannerAdUnitId', 'metaUsageStatsBannerAdUnitId', 'interstitialOnFreeServerSelection',
-          'freeServerInterstitialAdUnitId', 'metaFreeServerInterstitialAdUnitId'
+          'freeServerInterstitialAdUnitId', 'metaFreeServerInterstitialAdUnitId',
+          'yandexBannerAdUnitId', 'yandexAppOpenAdUnitId', 'yandexInterstitialAdUnitId', 'yandexRewardedAdUnitId',
+          'yandexNativeAdUnitId', 'yandexUsageStatsBannerAdUnitId', 'yandexFreeServerInterstitialAdUnitId',
+          'ruAdNetworkProvider'
       ];
 
       for (const col of columnsToAdd) {
@@ -265,7 +268,15 @@ async function setupDatabase() {
       enablePremiumServerRewards INTEGER DEFAULT 1,
       interstitialOnFreeServerSelection INTEGER DEFAULT 0,
       freeServerInterstitialAdUnitId TEXT,
-      metaFreeServerInterstitialAdUnitId TEXT
+      metaFreeServerInterstitialAdUnitId TEXT,
+      yandexBannerAdUnitId TEXT,
+      yandexAppOpenAdUnitId TEXT,
+      yandexInterstitialAdUnitId TEXT,
+      yandexRewardedAdUnitId TEXT,
+      yandexNativeAdUnitId TEXT,
+      yandexUsageStatsBannerAdUnitId TEXT,
+      yandexFreeServerInterstitialAdUnitId TEXT,
+      ruAdNetworkProvider TEXT DEFAULT 'Yandex'
     );
   `);
 
@@ -285,6 +296,9 @@ async function setupDatabase() {
       if (!columns.some(col => col.name === 'freeServerInterstitialAdUnitId')) {
           await db.run("ALTER TABLE app_config ADD COLUMN freeServerInterstitialAdUnitId TEXT");
           await db.run("ALTER TABLE app_config ADD COLUMN metaFreeServerInterstitialAdUnitId TEXT");
+      }
+      if (!columns.some(col => col.name === 'ruAdNetworkProvider')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN ruAdNetworkProvider TEXT DEFAULT 'Yandex'");
       }
   } catch(e) {
       console.error("Error migrating app_config table:", e);
@@ -435,6 +449,14 @@ app.get('/api/ads', async (req, res) => {
       metaUsageStatsBannerAdUnitId: config.metaUsageStatsBannerAdUnitId || "",
       freeServerInterstitialAdUnitId: config.freeServerInterstitialAdUnitId || "",
       metaFreeServerInterstitialAdUnitId: config.metaFreeServerInterstitialAdUnitId || "",
+      yandexBannerAdUnitId: config.yandexBannerAdUnitId || "",
+      yandexAppOpenAdUnitId: config.yandexAppOpenAdUnitId || "",
+      yandexInterstitialAdUnitId: config.yandexInterstitialAdUnitId || "",
+      yandexRewardedAdUnitId: config.yandexRewardedAdUnitId || "",
+      yandexNativeAdUnitId: config.yandexNativeAdUnitId || "",
+      yandexUsageStatsBannerAdUnitId: config.yandexUsageStatsBannerAdUnitId || "",
+      yandexFreeServerInterstitialAdUnitId: config.yandexFreeServerInterstitialAdUnitId || "",
+      ruAdNetworkProvider: config.ruAdNetworkProvider || "Yandex",
       enablePremiumServerRewards: config.enablePremiumServerRewards !== 0
   });
 });
@@ -669,6 +691,9 @@ app.post('/api/device/sync', express.json(), async (req, res) => {
           await db.run("ALTER TABLE app_config ADD COLUMN freeServerInterstitialAdUnitId TEXT");
           await db.run("ALTER TABLE app_config ADD COLUMN metaFreeServerInterstitialAdUnitId TEXT");
       }
+      if (!columns.some(col => col.name === 'ruAdNetworkProvider')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN ruAdNetworkProvider TEXT DEFAULT 'Yandex'");
+      }
   } catch(e) {
         console.error("Device sync error:", e);
         res.status(500).json({error: "Server error"});
@@ -701,6 +726,9 @@ app.get('/api/device/status', async (req, res) => {
       if (!columns.some(col => col.name === 'freeServerInterstitialAdUnitId')) {
           await db.run("ALTER TABLE app_config ADD COLUMN freeServerInterstitialAdUnitId TEXT");
           await db.run("ALTER TABLE app_config ADD COLUMN metaFreeServerInterstitialAdUnitId TEXT");
+      }
+      if (!columns.some(col => col.name === 'ruAdNetworkProvider')) {
+          await db.run("ALTER TABLE app_config ADD COLUMN ruAdNetworkProvider TEXT DEFAULT 'Yandex'");
       }
   } catch(e) {
         res.status(500).json({error: "Server error"});
@@ -816,7 +844,15 @@ app.get('/ads', requireAuth, async (req, res) => {
       usageStatsBannerAdUnitId: doc.usageStatsBannerAdUnitId || "",
       metaUsageStatsBannerAdUnitId: doc.metaUsageStatsBannerAdUnitId || "",
       freeServerInterstitialAdUnitId: doc.freeServerInterstitialAdUnitId || "",
-      metaFreeServerInterstitialAdUnitId: doc.metaFreeServerInterstitialAdUnitId || ""
+      metaFreeServerInterstitialAdUnitId: doc.metaFreeServerInterstitialAdUnitId || "",
+      yandexBannerAdUnitId: doc.yandexBannerAdUnitId || "",
+      yandexAppOpenAdUnitId: doc.yandexAppOpenAdUnitId || "",
+      yandexInterstitialAdUnitId: doc.yandexInterstitialAdUnitId || "",
+      yandexRewardedAdUnitId: doc.yandexRewardedAdUnitId || "",
+      yandexNativeAdUnitId: doc.yandexNativeAdUnitId || "",
+      yandexUsageStatsBannerAdUnitId: doc.yandexUsageStatsBannerAdUnitId || "",
+      yandexFreeServerInterstitialAdUnitId: doc.yandexFreeServerInterstitialAdUnitId || "",
+      ruAdNetworkProvider: doc.ruAdNetworkProvider || "Yandex"
   };
 
   res.render('ads', { config });
@@ -832,6 +868,7 @@ app.post('/ads', requireAuth, async (req, res) => {
   const iFreeServer = data.interstitialOnFreeServerSelection === 'on' ? 1 : 0;
   const appOpen = data.appOpenAdsEnabled === 'on' ? 1 : 0;
   const provider = data.adNetworkProvider || "AdMob";
+  const ruProvider = data.ruAdNetworkProvider || "Yandex";
 
   const bannerId = data.bannerAdUnitId || "";
   const appOpenId = data.appOpenAdUnitId || "";
@@ -849,8 +886,16 @@ app.post('/ads', requireAuth, async (req, res) => {
   const metaUsageStatsBannerId = data.metaUsageStatsBannerAdUnitId || "";
   const metaFreeServerInterstitialId = data.metaFreeServerInterstitialAdUnitId || "";
 
-  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, interstitialOnFreeServerSelection=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=?, freeServerInterstitialAdUnitId=?, metaFreeServerInterstitialAdUnitId=? WHERE id='ads'`,
-    [banners, iConnect, iDisconnect, iFreeServer, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId, freeServerInterstitialId, metaFreeServerInterstitialId]);
+  const yandexBannerId = data.yandexBannerAdUnitId || "";
+  const yandexAppOpenId = data.yandexAppOpenAdUnitId || "";
+  const yandexInterstitialId = data.yandexInterstitialAdUnitId || "";
+  const yandexRewardedId = data.yandexRewardedAdUnitId || "";
+  const yandexNativeId = data.yandexNativeAdUnitId || "";
+  const yandexUsageStatsBannerId = data.yandexUsageStatsBannerAdUnitId || "";
+  const yandexFreeServerInterstitialId = data.yandexFreeServerInterstitialAdUnitId || "";
+
+  await db.run(`UPDATE app_config SET bannersEnabled=?, interstitialOnConnect=?, interstitialOnDisconnect=?, interstitialOnFreeServerSelection=?, appOpenAdsEnabled=?, adNetworkProvider=?, bannerAdUnitId=?, appOpenAdUnitId=?, interstitialAdUnitId=?, rewardedAdUnitId=?, nativeAdUnitId=?, metaBannerAdUnitId=?, metaAppOpenAdUnitId=?, metaInterstitialAdUnitId=?, metaRewardedAdUnitId=?, metaNativeAdUnitId=?, usageStatsBannerAdUnitId=?, metaUsageStatsBannerAdUnitId=?, freeServerInterstitialAdUnitId=?, metaFreeServerInterstitialAdUnitId=?, yandexBannerAdUnitId=?, yandexAppOpenAdUnitId=?, yandexInterstitialAdUnitId=?, yandexRewardedAdUnitId=?, yandexNativeAdUnitId=?, yandexUsageStatsBannerAdUnitId=?, yandexFreeServerInterstitialAdUnitId=?, ruAdNetworkProvider=? WHERE id='ads'`,
+    [banners, iConnect, iDisconnect, iFreeServer, appOpen, provider, bannerId, appOpenId, interstitialId, rewardedId, nativeId, metaBannerId, metaAppOpenId, metaInterstitialId, metaRewardedId, metaNativeId, usageStatsBannerId, metaUsageStatsBannerId, freeServerInterstitialId, metaFreeServerInterstitialId, yandexBannerId, yandexAppOpenId, yandexInterstitialId, yandexRewardedId, yandexNativeId, yandexUsageStatsBannerId, yandexFreeServerInterstitialId, ruProvider]);
 
   res.redirect('/ads?saved=true');
 });
