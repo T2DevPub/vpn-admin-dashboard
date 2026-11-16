@@ -50,6 +50,10 @@
                     <label class="block text-gray-700">Port (Default: 1194)</label>
                     <input type="number" id="port" name="port" value="<%= server ? server.port : 1194 %>" class="w-full border rounded p-2 mt-1">
                 </div>
+                <div>
+                    <label class="block text-gray-700">Fallback TCP Port (Optional)</label>
+                    <input type="number" id="tcpPort" name="tcpPort" value="<%= server ? server.tcpPort : '' %>" placeholder="e.g. 443" class="w-full border rounded p-2 mt-1">
+                </div>
             </div>
 </div>
 <div class="mb-4">

@@ -193,9 +193,16 @@ async function setupDatabase() {
       activeUsers INTEGER DEFAULT 0,
       status TEXT DEFAULT 'Online',
       skipCertCheck INTEGER DEFAULT 0,
-      serverType TEXT DEFAULT 'Standard'
+      serverType TEXT DEFAULT 'Standard',
+      tcpPort INTEGER
     );
   `);
+
+  try {
+    await db.exec(`ALTER TABLE servers ADD COLUMN tcpPort INTEGER;`);
+  } catch (e) {
+    // Column likely already exists
+  }
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS active_sessions (
@@ -610,6 +617,7 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
     city: data.city,
     ipAddress: data.ipAddress || "",
     port: parseInt(data.port) || 1194,
+    tcpPort: data.tcpPort ? parseInt(data.tcpPort) : null,
     protocol: data.protocol || "UDP",
     loadPercent: parseInt(data.loadPercent) || 40,
     isPlusOnly: isPlusOnly,
@@ -625,11 +633,11 @@ app.post('/save', requireAuth, upload.single('ovpnFile'), async (req, res) => {
   const existing = await db.get(`SELECT id FROM servers WHERE id = ?`, id);
 
   if (existing) {
-    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, protocol=?, loadPercent=?, isPlusOnly=?, skipCertCheck=?, serverType=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
-      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.serverType, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
+    await db.run(`UPDATE servers SET name=?, countryCode=?, flagEmoji=?, city=?, ipAddress=?, port=?, tcpPort=?, protocol=?, loadPercent=?, isPlusOnly=?, skipCertCheck=?, serverType=?, ovpnConfig=?, vpnUsername=?, vpnPassword=? WHERE id=?`,
+      [serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.tcpPort, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.serverType, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword, id]);
   } else {
-    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, protocol, loadPercent, isPlusOnly, skipCertCheck, serverType, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.serverType, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
+    await db.run(`INSERT INTO servers (id, name, countryCode, flagEmoji, city, ipAddress, port, tcpPort, protocol, loadPercent, isPlusOnly, skipCertCheck, serverType, ovpnConfig, vpnUsername, vpnPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, serverData.name, serverData.countryCode, serverData.flagEmoji, serverData.city, serverData.ipAddress, serverData.port, serverData.tcpPort, serverData.protocol, serverData.loadPercent, serverData.isPlusOnly, serverData.skipCertCheck, serverData.serverType, serverData.ovpnConfig, serverData.vpnUsername, serverData.vpnPassword]);
   }
 
   res.redirect('/servers');
